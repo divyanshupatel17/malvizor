@@ -554,6 +554,155 @@
     .na-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; }
     .na-text { font-size: 8pt; color: #6b7280; }
 
+    /* ─── VISUAL ANALYTICS (PRINT-SAFE) ─────── */
+    .va-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .va-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 10px 12px;
+      page-break-inside: avoid;
+    }
+    .va-title {
+      font-size: 7.5pt;
+      font-weight: 800;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 7px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .stack-track {
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      background: #e5e7eb;
+      display: flex;
+      margin-bottom: 8px;
+    }
+    .stack-seg { height: 100%; }
+    .stack-seg.critical { background: #dc2626; }
+    .stack-seg.high { background: #ea580c; }
+    .stack-seg.medium { background: #d97706; }
+    .stack-seg.low { background: #059669; }
+    .va-legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 8px;
+    }
+    .va-leg-item {
+      font-size: 7pt;
+      color: #4b5563;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      line-height: 1.4;
+    }
+    .va-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .va-dot.critical { background: #dc2626; }
+    .va-dot.high { background: #ea580c; }
+    .va-dot.medium { background: #d97706; }
+    .va-dot.low { background: #059669; }
+    .hbar-row {
+      display: grid;
+      grid-template-columns: 54px 1fr 38px;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .hbar-row:last-child { margin-bottom: 0; }
+    .hbar-lbl {
+      font-size: 6.8pt;
+      color: #6b7280;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .hbar-bg {
+      height: 7px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .hbar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: #2563eb;
+    }
+    .hbar-fill.red { background: #dc2626; }
+    .hbar-fill.orange { background: #ea580c; }
+    .hbar-fill.amber { background: #d97706; }
+    .hbar-fill.green { background: #059669; }
+    .hbar-fill.purple { background: #7c3aed; }
+    .hbar-fill.cyan { background: #0891b2; }
+    .hbar-val {
+      font-family: 'Courier New', monospace;
+      font-size: 7pt;
+      color: #111827;
+      text-align: right;
+      font-weight: 700;
+    }
+    .wf-row {
+      display: grid;
+      grid-template-columns: 1fr 38px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .wf-row:last-child { margin-bottom: 0; }
+    .wf-text {
+      font-size: 7pt;
+      color: #374151;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .wf-pts {
+      font-family: 'Courier New', monospace;
+      font-size: 7pt;
+      text-align: right;
+      font-weight: 800;
+      color: #111827;
+    }
+    .entropy-mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7pt;
+      margin-top: 6px;
+    }
+    .entropy-mini-table th {
+      text-align: left;
+      color: #6b7280;
+      font-size: 6.5pt;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 3px 4px;
+    }
+    .entropy-mini-table td {
+      border-bottom: 1px solid #f3f4f6;
+      padding: 3px 4px;
+      color: #374151;
+      vertical-align: middle;
+    }
+    .entropy-mini-table tr:last-child td { border-bottom: none; }
+    .ent-mini-chip {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 700;
+      font-size: 6.4pt;
+    }
+    .ent-mini-chip.high { background: #fee2e2; color: #991b1b; }
+    .ent-mini-chip.medium { background: #fef3c7; color: #92400e; }
+    .ent-mini-chip.low { background: #d1fae5; color: #065f46; }
+
     /* ─── FOOTER ────────────────────────────── */
     .pdf-footer {
       margin-top: 18px; padding: 10px 14px;
@@ -591,6 +740,41 @@
 {% set s = strings.get('interesting', {}) %}
 {% set entropy = static.get('entropy', {}) %}
 {% set hash_map = static.get('hashes', {}) %}
+{% set suspicious_imports = pe.get('suspicious_imports', []) if pe else [] %}
+{% set sev = namespace(critical=0, high=0, medium=0, low=0, total=0) %}
+{% for ind in indicators %}
+  {% set pts = ind.points | default(0) | int %}
+  {% if ind.severity | lower == 'critical' %}
+    {% set sev.critical = sev.critical + pts %}
+  {% elif ind.severity | lower == 'high' %}
+    {% set sev.high = sev.high + pts %}
+  {% elif ind.severity | lower == 'medium' %}
+    {% set sev.medium = sev.medium + pts %}
+  {% elif ind.severity | lower == 'low' %}
+    {% set sev.low = sev.low + pts %}
+  {% endif %}
+{% endfor %}
+{% set sev.total = sev.critical + sev.high + sev.medium + sev.low %}
+{% set str_urls = s.urls | length if s and s.urls else 0 %}
+{% set str_ips = s.ip_addresses | length if s and s.ip_addresses else 0 %}
+{% set str_paths = s.file_paths | length if s and s.file_paths else 0 %}
+{% set str_mutex = s.mutex_names | length if s and s.mutex_names else 0 %}
+{% set str_keywords = s.suspicious_keywords | length if s and s.suspicious_keywords else 0 %}
+{% set str_total = str_urls + str_ips + str_paths + str_mutex + str_keywords %}
+{% set imp = namespace(crypto=0, network=0, kernel=0, other=0, total=0) %}
+{% for api in suspicious_imports %}
+  {% set dll = api.dll | default('') | upper %}
+  {% if dll == 'ADVAPI32.DLL' %}
+    {% set imp.crypto = imp.crypto + 1 %}
+  {% elif dll == 'WS2_32.DLL' %}
+    {% set imp.network = imp.network + 1 %}
+  {% elif dll == 'KERNEL32.DLL' %}
+    {% set imp.kernel = imp.kernel + 1 %}
+  {% else %}
+    {% set imp.other = imp.other + 1 %}
+  {% endif %}
+{% endfor %}
+{% set imp.total = imp.crypto + imp.network + imp.kernel + imp.other %}
 
 <div class="watermark {{ cls }}">{{ classification | upper }}</div>
 
@@ -631,46 +815,6 @@
       <div class="vm-item"><label>File Size</label><span>{{ summary.file_size or 'unknown' }}</span></div>
       <div class="vm-item"><label>File Type</label><span>{{ summary.file_type or '—' }}</span></div>
       <div class="vm-item"><label>Analyzed</label><span>{{ summary.timestamp | format_datetime if summary.timestamp else '—' }}</span></div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════
-     VISUALIZATION SNAPSHOT
-════════════════════════════════════ -->
-{% set vt_pct = ((vt.malicious / vt.total_engines) * 100) | round | int if vt and vt.available and vt.found and vt.total_engines else 0 %}
-{% set ent_pct = ((entropy.value / 8) * 100) | round | int if entropy and entropy.value is defined else 0 %}
-{% set ind_pct = [indicators | length * 8, 100] | min %}
-{% set yara_pct = [yr.total_matches * 12, 100] | min if yr and yr.available else 0 %}
-{% set mitre_pct = [atk.total * 6, 100] | min if atk and atk.available else 0 %}
-<div class="sec-head blue">📈 Visual Risk Snapshot</div>
-<div class="viz-grid">
-  <div class="viz-card">
-    <div class="viz-row">
-      <div class="viz-top"><span class="viz-label">Threat Score</span><span class="viz-val">{{ threat_score }}/100</span></div>
-      <div class="viz-bar-bg"><div class="viz-bar-fill red" style="width:{{ [threat_score,100]|min }}%"></div></div>
-    </div>
-    <div class="viz-row">
-      <div class="viz-top"><span class="viz-label">Indicators</span><span class="viz-val">{{ indicators | length }}</span></div>
-      <div class="viz-bar-bg"><div class="viz-bar-fill amber" style="width:{{ ind_pct }}%"></div></div>
-    </div>
-    <div class="viz-row">
-      <div class="viz-top"><span class="viz-label">Entropy</span><span class="viz-val">{{ entropy.value if entropy and entropy.value is defined else 'N/A' }}</span></div>
-      <div class="viz-bar-bg"><div class="viz-bar-fill purple" style="width:{{ ent_pct }}%"></div></div>
-    </div>
-  </div>
-  <div class="viz-card">
-    <div class="viz-row">
-      <div class="viz-top"><span class="viz-label">YARA Matches</span><span class="viz-val">{{ yr.total_matches if yr and yr.total_matches is defined else 0 }}</span></div>
-      <div class="viz-bar-bg"><div class="viz-bar-fill red" style="width:{{ yara_pct }}%"></div></div>
-    </div>
-    <div class="viz-row">
-      <div class="viz-top"><span class="viz-label">VirusTotal Detection</span><span class="viz-val">{{ vt_pct }}%</span></div>
-      <div class="viz-bar-bg"><div class="viz-bar-fill {{ 'red' if vt_pct >= 25 else ('amber' if vt_pct > 0 else 'green') }}" style="width:{{ vt_pct }}%"></div></div>
-    </div>
-    <div class="viz-row">
-      <div class="viz-top"><span class="viz-label">MITRE Techniques</span><span class="viz-val">{{ atk.total if atk and atk.total is defined else 0 }}</span></div>
-      <div class="viz-bar-bg"><div class="viz-bar-fill purple" style="width:{{ mitre_pct }}%"></div></div>
     </div>
   </div>
 </div>
@@ -767,6 +911,39 @@
       <div><div class="clean-title">No suspicious imports detected</div><div class="clean-text">No known dangerous API calls in import table.</div></div>
     </div>
     {% endif %}
+    {% if pe.sections %}
+    <div class="imp-section-title">Section Entropy Profile</div>
+    <table class="entropy-mini-table">
+      <thead>
+        <tr>
+          <th style="width:78px">Section</th>
+          <th>Entropy Bar</th>
+          <th style="width:44px;text-align:right">Value</th>
+          <th style="width:54px">Risk</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sec in pe.sections %}
+        {% set sec_ent = sec.entropy | default(0) | float %}
+        {% set sec_pct = ((sec_ent / 8) * 100) | round | int %}
+        <tr>
+          <td class="mono" style="font-weight:700">{{ sec.name }}</td>
+          <td>
+            <div class="hbar-bg">
+              <div class="hbar-fill {{ 'red' if sec_ent >= 7 else ('amber' if sec_ent >= 6 else 'green') }}" style="width:{{ [sec_pct,100] | min }}%"></div>
+            </div>
+          </td>
+          <td class="mono" style="text-align:right;font-weight:700">{{ '%.2f' % sec_ent }}</td>
+          <td>
+            <span class="ent-mini-chip {{ 'high' if sec_ent >= 7 else ('medium' if sec_ent >= 6 else 'low') }}">
+              {{ 'HIGH' if sec_ent >= 7 else ('MED' if sec_ent >= 6 else 'LOW') }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
   </div>
   {% else %}
   <div class="na-box"><div class="na-text">{{ pe.reason }}</div></div>
@@ -818,50 +995,43 @@
   {% if s.urls %}
   <div class="str-section">
     <div class="str-sec-hdr">URLs / Domains <span class="str-cnt">{{ s.urls | length }}</span></div>
-    {% for u in s.urls[:8] %}<div class="str-item url">{{ u }}</div>{% endfor %}
-    {% if s.urls|length > 8 %}<div class="str-more">+ {{ s.urls|length - 8 }} more</div>{% endif %}
+    {% for u in s.urls %}<div class="str-item url">{{ u }}</div>{% endfor %}
   </div>
   {% endif %}
   {% if s.ip_addresses %}
   <div class="str-section">
     <div class="str-sec-hdr">IP Addresses <span class="str-cnt">{{ s.ip_addresses | length }}</span></div>
-    {% for ip in s.ip_addresses[:8] %}<div class="str-item ip">{{ ip }}</div>{% endfor %}
-    {% if s.ip_addresses|length > 8 %}<div class="str-more">+ {{ s.ip_addresses|length - 8 }} more</div>{% endif %}
+    {% for ip in s.ip_addresses %}<div class="str-item ip">{{ ip }}</div>{% endfor %}
   </div>
   {% endif %}
   {% if s.emails %}
   <div class="str-section">
     <div class="str-sec-hdr">Email Addresses <span class="str-cnt">{{ s.emails | length }}</span></div>
-    {% for e in s.emails[:6] %}<div class="str-item email">{{ e }}</div>{% endfor %}
-    {% if s.emails|length > 6 %}<div class="str-more">+ {{ s.emails|length - 6 }} more</div>{% endif %}
+    {% for e in s.emails %}<div class="str-item email">{{ e }}</div>{% endfor %}
   </div>
   {% endif %}
   {% if s.registry_keys %}
   <div class="str-section">
     <div class="str-sec-hdr">Registry Keys <span class="str-cnt">{{ s.registry_keys | length }}</span></div>
-    {% for r in s.registry_keys[:6] %}<div class="str-item registry">{{ r }}</div>{% endfor %}
-    {% if s.registry_keys|length > 6 %}<div class="str-more">+ {{ s.registry_keys|length - 6 }} more</div>{% endif %}
+    {% for r in s.registry_keys %}<div class="str-item registry">{{ r }}</div>{% endfor %}
   </div>
   {% endif %}
   {% if s.file_paths %}
   <div class="str-section">
     <div class="str-sec-hdr">File Paths <span class="str-cnt">{{ s.file_paths | length }}</span></div>
-    {% for p in s.file_paths[:6] %}<div class="str-item filepath">{{ p }}</div>{% endfor %}
-    {% if s.file_paths|length > 6 %}<div class="str-more">+ {{ s.file_paths|length - 6 }} more</div>{% endif %}
+    {% for p in s.file_paths %}<div class="str-item filepath">{{ p }}</div>{% endfor %}
   </div>
   {% endif %}
   {% if s.mutex_names %}
   <div class="str-section">
     <div class="str-sec-hdr">Mutex / GUIDs <span class="str-cnt">{{ s.mutex_names | length }}</span></div>
-    {% for m in s.mutex_names[:6] %}<div class="str-item mutex">{{ m }}</div>{% endfor %}
-    {% if s.mutex_names|length > 6 %}<div class="str-more">+ {{ s.mutex_names|length - 6 }} more</div>{% endif %}
+    {% for m in s.mutex_names %}<div class="str-item mutex">{{ m }}</div>{% endfor %}
   </div>
   {% endif %}
   {% if s.suspicious_keywords %}
   <div class="str-section">
     <div class="str-sec-hdr">Suspicious Keywords <span class="str-cnt">{{ s.suspicious_keywords | length }}</span></div>
-    {% for k in s.suspicious_keywords[:12] %}<div class="str-item kw">{{ k }}</div>{% endfor %}
-    {% if s.suspicious_keywords|length > 12 %}<div class="str-more">+ {{ s.suspicious_keywords|length - 12 }} more</div>{% endif %}
+    {% for k in s.suspicious_keywords %}<div class="str-item kw">{{ k }}</div>{% endfor %}
   </div>
   {% endif %}
   {% else %}
@@ -923,7 +1093,7 @@
         <div class="eng-row">
           <span class="eng-dot {{ eng.category }}"></span>
           <span class="eng-name">{{ eng.name }}</span>
-          <span class="eng-result {{ eng.category }}">{% if eng.category in ['malicious','suspicious'] %}{{ eng.result[:16] }}{% else %}Clean{% endif %}</span>
+          <span class="eng-result {{ eng.category }}">{% if eng.category in ['malicious','suspicious'] %}{{ eng.result }}{% else %}Clean{% endif %}</span>
         </div>
         {% endfor %}
       </div>
@@ -990,6 +1160,137 @@
 {% endfor %}
 <div style="font-size:7pt;color:#9ca3af;margin-top:6px;text-align:right">MITRE ATT&amp;CK® v15 · Enterprise · https://attack.mitre.org</div>
 {% endif %}
+</div>
+
+<!-- ════════════════════════════════════
+     VISUAL ANALYSIS
+════════════════════════════════════ -->
+{% set vt_pct = ((vt.malicious / vt.total_engines) * 100) | round | int if vt and vt.available and vt.found and vt.total_engines else 0 %}
+{% set ent_pct = ((entropy.value / 8) * 100) | round | int if entropy and entropy.value is defined else 0 %}
+{% set ind_pct = [indicators | length * 8, 100] | min %}
+{% set yara_pct = [yr.total_matches * 12, 100] | min if yr and yr.available else 0 %}
+{% set mitre_pct = [atk.total * 6, 100] | min if atk and atk.available else 0 %}
+{% set max_str_api = [str_total, imp.total, 1] | max %}
+<div class="sec-head blue page-break">📈 Visual Analysis</div>
+<div class="viz-grid">
+  <div class="viz-card">
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">Threat Score</span><span class="viz-val">{{ threat_score }}/100</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill red" style="width:{{ [threat_score,100]|min }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">Indicators</span><span class="viz-val">{{ indicators | length }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill amber" style="width:{{ ind_pct }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">Entropy</span><span class="viz-val">{{ entropy.value if entropy and entropy.value is defined else 'N/A' }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill purple" style="width:{{ ent_pct }}%"></div></div>
+    </div>
+  </div>
+  <div class="viz-card">
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">YARA Matches</span><span class="viz-val">{{ yr.total_matches if yr and yr.total_matches is defined else 0 }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill red" style="width:{{ yara_pct }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">VirusTotal Detection</span><span class="viz-val">{{ vt_pct }}%</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill {{ 'red' if vt_pct >= 25 else ('amber' if vt_pct > 0 else 'green') }}" style="width:{{ vt_pct }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">MITRE Techniques</span><span class="viz-val">{{ atk.total if atk and atk.total is defined else 0 }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill purple" style="width:{{ mitre_pct }}%"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="va-grid">
+  <div class="va-card">
+    <div class="va-title">Score Build-up (Top Indicators)</div>
+    {% if indicators %}
+      {% for ind in indicators[:10] %}
+      <div class="wf-row">
+        <div class="wf-text">{{ ind.description }}</div>
+        <div class="wf-pts">+{{ ind.points }}</div>
+      </div>
+      {% endfor %}
+      {% if indicators | length > 10 %}
+      <div class="str-more">+ {{ indicators | length - 10 }} additional indicators</div>
+      {% endif %}
+    {% else %}
+      <div class="na-text">No indicator-driven score additions were recorded.</div>
+    {% endif %}
+  </div>
+
+  <div class="va-card">
+    <div class="va-title">Severity Score Split</div>
+    {% if sev.total > 0 %}
+    <div class="stack-track">
+      <div class="stack-seg critical" style="width:{{ ((sev.critical / sev.total) * 100) | round | int }}%"></div>
+      <div class="stack-seg high" style="width:{{ ((sev.high / sev.total) * 100) | round | int }}%"></div>
+      <div class="stack-seg medium" style="width:{{ ((sev.medium / sev.total) * 100) | round | int }}%"></div>
+      <div class="stack-seg low" style="width:{{ ((sev.low / sev.total) * 100) | round | int }}%"></div>
+    </div>
+    {% endif %}
+    <div class="va-legend">
+      <div class="va-leg-item"><span class="va-dot critical"></span>Critical: +{{ sev.critical }}</div>
+      <div class="va-leg-item"><span class="va-dot high"></span>High: +{{ sev.high }}</div>
+      <div class="va-leg-item"><span class="va-dot medium"></span>Medium: +{{ sev.medium }}</div>
+      <div class="va-leg-item"><span class="va-dot low"></span>Low: +{{ sev.low }}</div>
+    </div>
+  </div>
+
+  <div class="va-card">
+    <div class="va-title">Strings &amp; Suspicious APIs</div>
+    <div class="hbar-row">
+      <div class="hbar-lbl">Keywords</div>
+      <div class="hbar-bg"><div class="hbar-fill red" style="width:{{ ((str_keywords / max_str_api) * 100) | round | int }}%"></div></div>
+      <div class="hbar-val">{{ str_keywords }}</div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-lbl">URLs</div>
+      <div class="hbar-bg"><div class="hbar-fill cyan" style="width:{{ ((str_urls / max_str_api) * 100) | round | int }}%"></div></div>
+      <div class="hbar-val">{{ str_urls }}</div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-lbl">IPs</div>
+      <div class="hbar-bg"><div class="hbar-fill purple" style="width:{{ ((str_ips / max_str_api) * 100) | round | int }}%"></div></div>
+      <div class="hbar-val">{{ str_ips }}</div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-lbl">Paths</div>
+      <div class="hbar-bg"><div class="hbar-fill green" style="width:{{ ((str_paths / max_str_api) * 100) | round | int }}%"></div></div>
+      <div class="hbar-val">{{ str_paths }}</div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-lbl">Mutex</div>
+      <div class="hbar-bg"><div class="hbar-fill orange" style="width:{{ ((str_mutex / max_str_api) * 100) | round | int }}%"></div></div>
+      <div class="hbar-val">{{ str_mutex }}</div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-lbl">API Calls</div>
+      <div class="hbar-bg"><div class="hbar-fill amber" style="width:{{ ((imp.total / max_str_api) * 100) | round | int }}%"></div></div>
+      <div class="hbar-val">{{ imp.total }}</div>
+    </div>
+  </div>
+
+  <div class="va-card">
+    <div class="va-title">MITRE Tactic Coverage</div>
+    {% if atk and atk.available and atk.tactics_map %}
+      {% set mt = namespace(max=1) %}
+      {% for tactic, techniques in atk.tactics_map.items() %}
+        {% if techniques | length > mt.max %}{% set mt.max = techniques | length %}{% endif %}
+      {% endfor %}
+      {% for tactic, techniques in atk.tactics_map.items() %}
+      <div class="hbar-row">
+        <div class="hbar-lbl">{{ tactic[:14] }}</div>
+        <div class="hbar-bg"><div class="hbar-fill purple" style="width:{{ ((techniques | length / mt.max) * 100) | round | int }}%"></div></div>
+        <div class="hbar-val">{{ techniques | length }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="na-text">No ATT&amp;CK tactic coverage to visualize.</div>
+    {% endif %}
+  </div>
 </div>
 
 <!-- ════════════════════════════════════
