@@ -75,9 +75,9 @@
     }
 
     .panel {
-      zoom: 1.3;
       position: relative; z-index: 2;
       width: 420px;
+      max-width: calc(100vw - 32px);
       background: var(--bg-panel);
       border: 1px solid rgba(56,189,248,0.13);
       border-radius: 16px;
@@ -262,6 +262,11 @@
     .status-dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 2s ease-in-out infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
     .status-right { font-family: var(--mono); font-size: 10px; color: var(--text-ghost); letter-spacing: 0.06em; }
+
+    @media (max-width: 600px) {
+      .panel-inner { padding: 1.5rem 1.25rem 1.25rem; }
+      .panel-footer { padding: 10px 1.25rem; }
+    }
   </style>
 </head>
 <body>
@@ -396,6 +401,7 @@
 
 <script>
   var isSignupMode = false;
+  var authSubmitting = false;
 
   function togglePwd() {
     var inp  = document.getElementById('pwdInput');
@@ -418,10 +424,18 @@
     this.textContent = isSignupMode ? 'Sign in instead' : 'Create account';
   });
 
-  document.getElementById('loginForm').addEventListener('submit', function() {
+  document.getElementById('loginForm').addEventListener('submit', function(e) {
+    if (authSubmitting) {
+      e.preventDefault();
+      return;
+    }
+    authSubmitting = true;
     var btn = document.getElementById('loginBtn');
+    var guestBtn = document.getElementById('guestBtn');
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div><span>' + (isSignupMode ? 'Creating account...' : 'Authenticating...') + '</span>';
+    guestBtn.style.pointerEvents = 'none';
+    guestBtn.style.opacity = '0.65';
   });
 
   document.getElementById('guestBtn').addEventListener('click', function(e) {

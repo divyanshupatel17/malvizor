@@ -748,6 +748,7 @@
 <script>
 // Expose session info globally so the main app can branch on it
 window.SESSION = { logged_in: false, guest: false, username: '' };
+window.SESSION_READY = false;
 
 (function initSession() {
   fetch('/api/session-info')
@@ -756,7 +757,11 @@ window.SESSION = { logged_in: false, guest: false, username: '' };
       window.SESSION = info;
       renderSessionUI(info);
     })
-    .catch(() => renderSessionUI(window.SESSION));
+    .catch(() => renderSessionUI(window.SESSION))
+    .finally(() => {
+      window.SESSION_READY = true;
+      window.dispatchEvent(new Event('malvizor-session-ready'));
+    });
 
   function renderSessionUI(info) {
     const badgeWrap   = document.getElementById('session-badge-wrap');
@@ -804,8 +809,8 @@ window.SESSION = { logged_in: false, guest: false, username: '' };
 <!-- ══════════════════════════════════════════════════
      GUEST HISTORY  —  localStorage key: malvizor_guest_history
      Schema per entry:
-       { id, display_id, filename, file_type, threat_score,
-         classification, timestamp, report_id }
+        { id, display_id, filename, file_type, threat_score,
+          classification, timestamp, report_id, report_json }
 ══════════════════════════════════════════════════ -->
 <script>
 window.GuestHistory = (function() {
@@ -1097,7 +1102,6 @@ window.GuestHistory = (function() {
 
   /* ── LOAD HISTORY ── */
   function loadHistory() {
-    // Wait for session info to be available, then branch
     const doLoad = () => {
       if (window.SESSION.guest) {
         // Guest — load from localStorage
@@ -1120,17 +1124,15 @@ window.GuestHistory = (function() {
           })
           .catch(() => showToast('Failed to load history', 'error'));
       } else {
-        // Fallback — no session, redirect
-        window.location.href = '/login';
+        // Session unresolved/anonymous — keep page stable instead of forcing logout loops.
+        showToast('Session not ready. Please refresh once.', 'error');
       }
     };
 
-    // If SESSION is already populated, go; else wait a tick
-    if (window.SESSION.guest || window.SESSION.logged_in) {
+    if (window.SESSION_READY) {
       doLoad();
     } else {
-      // Poll until session-info fetch completes (usually <100ms)
-      setTimeout(() => doLoad(), 150);
+      window.addEventListener('malvizor-session-ready', doLoad, { once: true });
     }
   }
 
@@ -1181,6 +1183,7 @@ window.GuestHistory = (function() {
               threat_score   : res.threat_score || 0,
               classification : res.classification || 'unknown',
               timestamp      : res.timestamp || new Date().toISOString(),
+              report_json    : res.report_json || null,
             });
           }
 
