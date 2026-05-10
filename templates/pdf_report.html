@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>MalVizor Report — {{ report.summary.file_name }}</title>
+  <title>MalVizor Report — {{ report.summary.file_name if report.summary and report.summary.file_name else 'Unknown file' }}</title>
   <style>
     @page {
       size: A4;
@@ -14,7 +14,7 @@
         font-family: 'Helvetica Neue', Arial, sans-serif;
       }
       @top-right {
-        content: "{{ report.summary.file_name }}";
+        content: "{{ report.summary.file_name if report.summary and report.summary.file_name else 'Unknown file' }}";
         font-size: 7pt;
         color: #6b7280;
         font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -165,6 +165,63 @@
       background: #f3f4f6; padding: 1px 7px;
       border-radius: 10px; border: 1px solid #e5e7eb;
       text-transform: none; letter-spacing: 0;
+    }
+
+    /* ─── VISUAL SUMMARY ────────────────────── */
+    .viz-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+    }
+    .viz-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      padding: 10px 12px;
+    }
+    .viz-row { margin-bottom: 8px; }
+    .viz-row:last-child { margin-bottom: 0; }
+    .viz-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+    .viz-label {
+      font-size: 7pt;
+      font-weight: 700;
+      color: #4b5563;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+    .viz-val {
+      font-size: 7.5pt;
+      font-weight: 800;
+      color: #111827;
+      font-family: 'Courier New', monospace;
+    }
+    .viz-bar-bg {
+      height: 6px;
+      border-radius: 3px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    .viz-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: #2563eb;
+    }
+    .viz-bar-fill.red { background: #dc2626; }
+    .viz-bar-fill.amber { background: #d97706; }
+    .viz-bar-fill.green { background: #059669; }
+    .viz-bar-fill.purple { background: #7c3aed; }
+    .viz-footnote {
+      font-size: 6.8pt;
+      color: #6b7280;
+      margin-top: 8px;
+      line-height: 1.4;
     }
 
     /* ─── GRID LAYOUT ───────────────────────── */
@@ -520,9 +577,22 @@
 </head>
 <body>
 
-{% set cls = report.classification | lower %}
+{% set summary = report.get('summary', {}) %}
+{% set static = report.get('static_analysis', {}) %}
+{% set indicators = report.get('indicators', []) %}
+{% set threat_score = report.get('threat_score', summary.get('threat_score', 0)) %}
+{% set classification = report.get('classification', summary.get('classification', 'unknown')) %}
+{% set cls = classification | lower %}
+{% set pe = static.get('pe_info', {}) %}
+{% set yr = static.get('yara', {}) %}
+{% set vt = static.get('virustotal', {}) %}
+{% set atk = static.get('mitre_attack', {}) %}
+{% set strings = static.get('strings', {}) %}
+{% set s = strings.get('interesting', {}) %}
+{% set entropy = static.get('entropy', {}) %}
+{% set hash_map = static.get('hashes', {}) %}
 
-<div class="watermark {{ cls }}">{{ report.classification | upper }}</div>
+<div class="watermark {{ cls }}">{{ classification | upper }}</div>
 
 <!-- ════════════════════════════════════
      HEADER
@@ -542,7 +612,7 @@
   <div class="header-right">
     <div class="header-label">Generated</div>
     <div class="header-date">{{ generated_at }}</div>
-    <div class="header-hash">SHA256: {{ report.summary.sha256[:32] if report.summary.sha256 else 'N/A' }}…</div>
+    <div class="header-hash">SHA256: {{ summary.sha256[:32] if summary.sha256 else 'N/A' }}…</div>
   </div>
 </div>
 
@@ -551,16 +621,56 @@
 ════════════════════════════════════ -->
 <div class="verdict-box {{ cls }}">
   <div class="score-wrap">
-    <div class="score-circle {{ cls }}">{{ report.threat_score }}</div>
+    <div class="score-circle {{ cls }}">{{ threat_score }}</div>
     <div class="score-label">Threat Score</div>
   </div>
   <div class="verdict-info">
-    <div class="verdict-cls {{ cls }}">{{ report.classification | upper }}</div>
+    <div class="verdict-cls {{ cls }}">{{ classification | upper }}</div>
     <div class="verdict-meta">
-      <div class="vm-item"><label>File Name</label><span>{{ report.summary.file_name }}</span></div>
-      <div class="vm-item"><label>File Size</label><span>{{ report.summary.file_size }}</span></div>
-      <div class="vm-item"><label>File Type</label><span>{{ report.summary.file_type or '—' }}</span></div>
-      <div class="vm-item"><label>Analyzed</label><span>{{ report.summary.timestamp | format_datetime }}</span></div>
+      <div class="vm-item"><label>File Name</label><span>{{ summary.file_name or 'unknown' }}</span></div>
+      <div class="vm-item"><label>File Size</label><span>{{ summary.file_size or 'unknown' }}</span></div>
+      <div class="vm-item"><label>File Type</label><span>{{ summary.file_type or '—' }}</span></div>
+      <div class="vm-item"><label>Analyzed</label><span>{{ summary.timestamp | format_datetime if summary.timestamp else '—' }}</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     VISUALIZATION SNAPSHOT
+════════════════════════════════════ -->
+{% set vt_pct = ((vt.malicious / vt.total_engines) * 100) | round | int if vt and vt.available and vt.found and vt.total_engines else 0 %}
+{% set ent_pct = ((entropy.value / 8) * 100) | round | int if entropy and entropy.value is defined else 0 %}
+{% set ind_pct = [indicators | length * 8, 100] | min %}
+{% set yara_pct = [yr.total_matches * 12, 100] | min if yr and yr.available else 0 %}
+{% set mitre_pct = [atk.total * 6, 100] | min if atk and atk.available else 0 %}
+<div class="sec-head blue">📈 Visual Risk Snapshot</div>
+<div class="viz-grid">
+  <div class="viz-card">
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">Threat Score</span><span class="viz-val">{{ threat_score }}/100</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill red" style="width:{{ [threat_score,100]|min }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">Indicators</span><span class="viz-val">{{ indicators | length }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill amber" style="width:{{ ind_pct }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">Entropy</span><span class="viz-val">{{ entropy.value if entropy and entropy.value is defined else 'N/A' }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill purple" style="width:{{ ent_pct }}%"></div></div>
+    </div>
+  </div>
+  <div class="viz-card">
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">YARA Matches</span><span class="viz-val">{{ yr.total_matches if yr and yr.total_matches is defined else 0 }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill red" style="width:{{ yara_pct }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">VirusTotal Detection</span><span class="viz-val">{{ vt_pct }}%</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill {{ 'red' if vt_pct >= 25 else ('amber' if vt_pct > 0 else 'green') }}" style="width:{{ vt_pct }}%"></div></div>
+    </div>
+    <div class="viz-row">
+      <div class="viz-top"><span class="viz-label">MITRE Techniques</span><span class="viz-val">{{ atk.total if atk and atk.total is defined else 0 }}</span></div>
+      <div class="viz-bar-bg"><div class="viz-bar-fill purple" style="width:{{ mitre_pct }}%"></div></div>
     </div>
   </div>
 </div>
@@ -568,21 +678,26 @@
 <!-- ════════════════════════════════════
      THREAT INDICATORS
 ════════════════════════════════════ -->
-{% if report.indicators %}
 <div class="sec-head red">
   ⚠ Threat Indicators
-  <span class="sec-badge">{{ report.indicators | length }} found</span>
+  <span class="sec-badge">{{ indicators | length }} found</span>
 </div>
 <div class="no-break">
-  {% for ind in report.indicators %}
+  {% if indicators %}
+  {% for ind in indicators %}
   <div class="ind-row {{ ind.severity | lower }}">
     <span class="ind-sev {{ ind.severity | lower }}">{{ ind.severity }}</span>
     <span class="ind-pts">+{{ ind.points }}</span>
     <span class="ind-text">{{ ind.description }}</span>
   </div>
   {% endfor %}
+  {% else %}
+  <div class="clean-box">
+    <span class="clean-icon">✓</span>
+    <div><div class="clean-title">No threat indicators recorded</div><div class="clean-text">No explicit indicator rules fired for this sample.</div></div>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 
 <!-- ════════════════════════════════════
      HASHES + ENTROPY
@@ -591,8 +706,8 @@
   <div>
     <div class="sec-head blue">🔑 File Hashes</div>
     <div class="card no-break">
-      {% if report.static_analysis.hashes %}
-        {% for algo, value in report.static_analysis.hashes.items() %}
+      {% if hash_map %}
+        {% for algo, value in hash_map.items() %}
         <div class="hash-row">
           <span class="hash-algo">{{ algo | upper }}</span>
           <span class="hash-val">{{ value }}</span>
@@ -605,8 +720,8 @@
   </div>
   <div>
     <div class="sec-head amber">📊 Entropy Analysis</div>
-    {% if report.static_analysis.entropy %}
-    {% set ent = report.static_analysis.entropy %}
+    {% if entropy %}
+    {% set ent = entropy %}
     {% set ep = ((ent.value / 8) * 100) | round | int %}
     <div class="card no-break">
       <div class="entropy-num">{{ ent.value }}</div>
@@ -623,7 +738,6 @@
 <!-- ════════════════════════════════════
      PE INFORMATION
 ════════════════════════════════════ -->
-{% set pe = report.static_analysis.pe_info %}
 {% if pe %}
 <div class="sec-head cyan">🔩 PE Information</div>
 <div class="no-break">
@@ -663,7 +777,6 @@
 <!-- ════════════════════════════════════
      YARA DETECTION
 ════════════════════════════════════ -->
-{% set yr = report.static_analysis.yara %}
 <div class="sec-head purple">🛡 YARA Rule Detection</div>
 <div class="no-break">
   {% if not yr or not yr.available %}
@@ -698,12 +811,10 @@
 <!-- ════════════════════════════════════
      INTERESTING STRINGS
 ════════════════════════════════════ -->
-{% if report.static_analysis.strings and report.static_analysis.strings.interesting %}
-{% set s = report.static_analysis.strings.interesting %}
-{% set has_any = s.urls or s.ip_addresses or s.suspicious_keywords or s.emails or s.file_paths or s.registry_keys or s.mutex_names %}
-{% if has_any %}
 <div class="sec-head green">🔍 Interesting Strings</div>
 <div class="card no-break">
+  {% set has_any = s and (s.urls or s.ip_addresses or s.suspicious_keywords or s.emails or s.file_paths or s.registry_keys or s.mutex_names) %}
+  {% if has_any %}
   {% if s.urls %}
   <div class="str-section">
     <div class="str-sec-hdr">URLs / Domains <span class="str-cnt">{{ s.urls | length }}</span></div>
@@ -753,18 +864,21 @@
     {% if s.suspicious_keywords|length > 12 %}<div class="str-more">+ {{ s.suspicious_keywords|length - 12 }} more</div>{% endif %}
   </div>
   {% endif %}
+  {% else %}
+  <div class="clean-box">
+    <span class="clean-icon">✓</span>
+    <div><div class="clean-title">No suspicious strings detected</div><div class="clean-text">No high-signal URLs, IPs, keywords, registry keys, paths, or mutex artifacts found.</div></div>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
-{% endif %}
 
 <!-- ════════════════════════════════════
      VIRUSTOTAL
 ════════════════════════════════════ -->
-{% set vt = report.static_analysis.virustotal %}
 <div class="sec-head red page-break">🔬 VirusTotal &amp; Engine Results</div>
 <div class="no-break">
   {% if not vt or (not vt.available and vt.reason == "no_key") %}
-  <div class="na-box"><div class="na-text">⚠ VirusTotal API key not configured. Set <span class="mono">VIRUSTOTAL_API_KEY</span> in config.py.</div></div>
+  <div class="na-box"><div class="na-text">⚠ VirusTotal API key not configured. Set <span class="mono">VIRUSTOTAL_API_KEY</span> in environment variables.</div></div>
 
   {% elif vt.available and not vt.found %}
   <div class="clean-box">
@@ -825,7 +939,6 @@
 <!-- ════════════════════════════════════
      MITRE ATT&CK
 ════════════════════════════════════ -->
-{% set atk = report.static_analysis.mitre_attack %}
 <div class="sec-head orange">🎯 MITRE ATT&amp;CK Mapping</div>
 <div class="no-break">
 {% if not atk or not atk.available %}
@@ -882,7 +995,7 @@
 <!-- ════════════════════════════════════
      CLASSIFICATION SUMMARY
 ════════════════════════════════════ -->
-{% set score = report.threat_score %}
+{% set score = threat_score %}
 {% set conf  = "HIGH" if score >= 70 else ("MEDIUM" if score >= 35 else "LOW") %}
 
 <div class="sec-head {% if cls=='malicious' %}red{% elif cls=='suspicious' %}amber{% else %}green{% endif %}">
@@ -896,13 +1009,13 @@
     {% else %}✓ This file appears BENIGN — supporting evidence:{% endif %}
   </div>
 
-  {% if report.static_analysis.entropy %}{% set ent2 = report.static_analysis.entropy %}
+  {% if entropy %}{% set ent2 = entropy %}
     {% if ent2.level == 'very_high' %}<div class="sum-reason"><span class="sum-dot critical"></span>Very high entropy ({{ ent2.value }}) — file is likely packed or encrypted to evade detection</div>
     {% elif ent2.level == 'high' %}<div class="sum-reason"><span class="sum-dot high"></span>High entropy ({{ ent2.value }}) — file may be compressed or obfuscated</div>
     {% elif ent2.level in ['normal','moderate'] %}<div class="sum-reason"><span class="sum-dot low"></span>Normal entropy ({{ ent2.value }}) — file content appears unobfuscated</div>{% endif %}
   {% endif %}
 
-  {% set yr2 = report.static_analysis.yara %}
+  {% set yr2 = yr %}
   {% if yr2 and yr2.available and yr2.total_matches > 0 %}
     {% if yr2.highest_severity == 'critical' %}<div class="sum-reason"><span class="sum-dot critical"></span>{{ yr2.total_matches }} YARA rule{{ 's' if yr2.total_matches!=1 }} matched — highest severity CRITICAL ({{ yr2.matched[0].category if yr2.matched else 'malware' }})</div>
     {% elif yr2.highest_severity == 'high' %}<div class="sum-reason"><span class="sum-dot high"></span>{{ yr2.total_matches }} YARA rule{{ 's' if yr2.total_matches!=1 }} matched — includes high-severity patterns</div>
@@ -911,8 +1024,8 @@
   <div class="sum-reason"><span class="sum-dot low"></span>No YARA rules matched — no known malware signatures detected</div>
   {% endif %}
 
-  {% if report.static_analysis.strings and report.static_analysis.strings.interesting %}
-  {% set si = report.static_analysis.strings.interesting %}
+  {% if s %}
+  {% set si = s %}
   {% set kws = si.suspicious_keywords if si.suspicious_keywords else [] %}
   {% set ts = (si.urls|length if si.urls else 0)+(si.ip_addresses|length if si.ip_addresses else 0)+(kws|length)+(si.emails|length if si.emails else 0)+(si.file_paths|length if si.file_paths else 0)+(si.registry_keys|length if si.registry_keys else 0)+(si.mutex_names|length if si.mutex_names else 0) %}
   {% if ts > 0 %}
@@ -926,7 +1039,7 @@
   <div class="sum-reason"><span class="sum-dot {{ 'critical' if atk.high_count > 3 else 'high' }}"></span>{{ atk.total }} MITRE ATT&amp;CK technique{{ 's' if atk.total!=1 }} mapped across {{ atk.tactic_count }} tactic{{ 's' if atk.tactic_count!=1 }} ({{ atk.high_count }} high-confidence)</div>
   {% endif %}
 
-  {% set vt2 = report.static_analysis.virustotal %}
+  {% set vt2 = vt %}
   {% if vt2 and vt2.available and vt2.found %}
     {% if vt2.malicious > 0 %}{% set vp = ((vt2.malicious/vt2.total_engines)*100)|round|int %}
     <div class="sum-reason"><span class="sum-dot {{ 'critical' if vp > 50 else 'high' }}"></span>VirusTotal: {{ vt2.malicious }}/{{ vt2.total_engines }} engines flagged this file ({{ vp }}% detection rate)</div>
@@ -935,7 +1048,7 @@
   <div class="sum-reason"><span class="sum-dot medium"></span>Not found in VirusTotal — hash never submitted; treat with caution</div>
   {% endif %}
 
-  {% set pe2 = report.static_analysis.pe_info %}
+  {% set pe2 = pe %}
   {% if pe2 and pe2.available and pe2.suspicious_imports %}
   <div class="sum-reason"><span class="sum-dot high"></span>{{ pe2.suspicious_imports|length }} suspicious API import{{ 's' if pe2.suspicious_imports|length!=1 }} detected ({{ pe2.suspicious_imports[0].function if pe2.suspicious_imports else '' }}{% if pe2.suspicious_imports|length > 1 %} + {{ pe2.suspicious_imports|length - 1 }} more{% endif %})</div>
   {% endif %}
@@ -943,7 +1056,7 @@
   <div class="conf-strip">
     <div class="conf-cell"><label>Threat Score</label><div class="cval {{ cls }}">{{ score }}<span style="font-size:7.5pt;font-weight:600">/100</span></div></div>
     <div class="conf-cell"><label>Confidence</label><div class="cval {{ cls }}">{{ conf }}</div></div>
-    <div class="conf-cell"><label>Verdict</label><div class="cval {{ cls }}">{{ report.classification | upper }}</div></div>
+    <div class="conf-cell"><label>Verdict</label><div class="cval {{ cls }}">{{ classification | upper }}</div></div>
     {% if atk and atk.available %}<div class="conf-cell"><label>ATT&amp;CK</label><div class="cval orange">{{ atk.total }} technique{{ 's' if atk.total!=1 }}</div></div>{% endif %}
     {% if yr2 and yr2.available %}<div class="conf-cell"><label>YARA Hits</label><div class="cval {{ 'malicious' if yr2.total_matches > 0 else 'benign' }}">{{ yr2.total_matches }}</div></div>{% endif %}
   </div>
@@ -959,7 +1072,7 @@
   </div>
   <div class="footer-right">
     Generated: {{ generated_at }}<br>
-    <div class="footer-hash">{{ report.summary.sha256 or 'N/A' }}</div>
+    <div class="footer-hash">{{ summary.sha256 or 'N/A' }}</div>
   </div>
 </div>
 
