@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MalVizor Report — {{ report.summary.file_name }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 14mm 20mm 14mm;
+      @top-left {
+        content: "MalVizor · Static Threat Analysis";
+        font-size: 7pt;
+        color: #6b7280;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+      }
+      @top-right {
+        content: "{{ report.summary.file_name }}";
+        font-size: 7pt;
+        color: #6b7280;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+      }
+      @bottom-left {
+        content: "CONFIDENTIAL — For authorized use only";
+        font-size: 7pt;
+        color: #9ca3af;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+      }
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 7pt;
+        color: #6b7280;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 8.5pt;
+      color: #111827;
+      background: #ffffff;
+      line-height: 1.55;
+    }
+
+    /* ─── WATERMARK ─────────────────────────── */
+    .watermark {
+      position: fixed; top: 48%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-32deg);
+      font-size: 80pt; font-weight: 900;
+      opacity: 0.03; z-index: -1; pointer-events: none;
+    }
+    .watermark.malicious  { color: #dc2626; }
+    .watermark.suspicious { color: #d97706; }
+    .watermark.benign     { color: #059669; }
+
+    /* ─── HEADER ────────────────────────────── */
+    .pdf-header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #111827;
+      margin-bottom: 14px;
+    }
+    .header-left  { display: flex; align-items: center; gap: 11px; }
+    .logo-wrap {
+      width: 40px; height: 40px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-wrap img {
+      width: 40px; height: 40px;
+      object-fit: contain;
+      /* strip white bg on logos that have one */
+      mix-blend-mode: multiply;
+    }
+    .logo-fallback {
+      width: 40px; height: 40px; border-radius: 8px;
+      background: #1e3a5f;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16pt; font-weight: 900; color: #fff;
+    }
+    .tool-name { font-size: 15pt; font-weight: 900; color: #0f172a; letter-spacing: -0.01em; line-height: 1; }
+    .tool-sub  { font-size: 7pt; color: #6b7280; text-transform: uppercase; letter-spacing: .13em; margin-top: 2px; }
+    .header-right { text-align: right; }
+    .header-label { font-size: 7pt; color: #9ca3af; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+    .header-date  { font-size: 9.5pt; font-weight: 700; color: #111827; }
+    .header-hash  {
+      font-family: 'Courier New', monospace;
+      font-size: 7pt; color: #6b7280;
+      background: #f3f4f6; padding: 2px 7px;
+      border-radius: 3px; display: inline-block; margin-top: 3px;
+    }
+
+    /* ─── VERDICT HERO ──────────────────────── */
+    .verdict-box {
+      border-radius: 8px; padding: 14px 18px;
+      margin-bottom: 14px;
+      display: flex; align-items: stretch; gap: 18px;
+      border-left: 6px solid transparent;
+      border: 1.5px solid transparent;
+      position: relative; overflow: hidden;
+    }
+    .verdict-box.malicious  { background: #fef2f2; border-color: #fca5a5; border-left-color: #dc2626; }
+    .verdict-box.suspicious { background: #fffbeb; border-color: #fcd34d; border-left-color: #d97706; }
+    .verdict-box.benign     { background: #f0fdf4; border-color: #86efac; border-left-color: #059669; }
+
+    .score-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; flex-shrink: 0; gap: 4px;
+      border-right: 1px solid rgba(0,0,0,0.1);
+      padding-right: 18px; min-width: 80px;
+    }
+    .score-circle {
+      width: 66px; height: 66px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 21pt; font-weight: 900;
+      border: 3.5px solid transparent; background: #fff;
+    }
+    .score-circle.malicious  { color: #dc2626; border-color: #fca5a5; }
+    .score-circle.suspicious { color: #d97706; border-color: #fcd34d; }
+    .score-circle.benign     { color: #059669; border-color: #86efac; }
+    .score-label { font-size: 6.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; }
+
+    .verdict-info { flex: 1; }
+    .verdict-cls {
+      font-size: 22pt; font-weight: 900; letter-spacing: .04em;
+      line-height: 1; margin-bottom: 10px;
+    }
+    .verdict-cls.malicious  { color: #dc2626; }
+    .verdict-cls.suspicious { color: #d97706; }
+    .verdict-cls.benign     { color: #059669; }
+
+    .verdict-meta { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .vm-item { }
+    .vm-item label {
+      font-size: 6.5pt; color: #6b7280;
+      text-transform: uppercase; letter-spacing: .09em;
+      display: block; margin-bottom: 2px; font-weight: 600;
+    }
+    .vm-item span {
+      font-size: 8.5pt; color: #111827; font-weight: 700;
+      font-family: 'Courier New', monospace; word-break: break-all;
+    }
+
+    /* ─── SECTION HEADING ───────────────────── */
+    .sec-head {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 8pt; font-weight: 800; color: #111827;
+      text-transform: uppercase; letter-spacing: .1em;
+      padding: 5px 0 5px 10px;
+      margin: 14px 0 8px 0;
+      border-left: 3.5px solid #94a3b8;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 6px;
+    }
+    .sec-head.red    { border-left-color: #dc2626; }
+    .sec-head.blue   { border-left-color: #2563eb; }
+    .sec-head.amber  { border-left-color: #d97706; }
+    .sec-head.cyan   { border-left-color: #0891b2; }
+    .sec-head.purple { border-left-color: #7c3aed; }
+    .sec-head.green  { border-left-color: #059669; }
+    .sec-head.orange { border-left-color: #ea580c; }
+    .sec-badge {
+      font-size: 7pt; font-weight: 700; color: #6b7280;
+      background: #f3f4f6; padding: 1px 7px;
+      border-radius: 10px; border: 1px solid #e5e7eb;
+      text-transform: none; letter-spacing: 0;
+    }
+
+    /* ─── GRID LAYOUT ───────────────────────── */
+    .two-col   { display: grid; grid-template-columns: 1fr 1fr;     gap: 10px; margin-bottom: 10px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+    /* ─── CARD ──────────────────────────────── */
+    .card {
+      background: #f9fafb; border: 1px solid #e5e7eb;
+      border-radius: 7px; padding: 10px 12px;
+    }
+    .card-title {
+      font-size: 7.5pt; font-weight: 700; color: #6b7280;
+      text-transform: uppercase; letter-spacing: .07em;
+      margin-bottom: 8px; padding-bottom: 5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    /* ─── INDICATORS ────────────────────────── */
+    .ind-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 5px 10px; border-radius: 5px; margin-bottom: 4px;
+      border-left: 3px solid transparent;
+    }
+    .ind-row.critical { background: #fef2f2; border-left-color: #dc2626; }
+    .ind-row.high     { background: #fff5f5; border-left-color: #ef4444; }
+    .ind-row.medium   { background: #fffbeb; border-left-color: #d97706; }
+    .ind-row.low      { background: #f0fdf4; border-left-color: #059669; }
+    .ind-sev {
+      font-size: 6.5pt; font-weight: 800; padding: 2px 7px;
+      border-radius: 3px; flex-shrink: 0;
+      text-transform: uppercase; letter-spacing: .05em; margin-top: 1px;
+    }
+    .ind-sev.critical { background: #fee2e2; color: #991b1b; }
+    .ind-sev.high     { background: #fee2e2; color: #b91c1c; }
+    .ind-sev.medium   { background: #fef3c7; color: #92400e; }
+    .ind-sev.low      { background: #d1fae5; color: #065f46; }
+    .ind-pts  { font-size: 7pt; font-weight: 700; color: #9ca3af; font-family: 'Courier New', monospace; flex-shrink: 0; margin-top: 2px; }
+    .ind-text { font-size: 8pt; color: #1f2937; flex: 1; line-height: 1.45; }
+
+    /* ─── HASHES ────────────────────────────── */
+    .hash-row {
+      display: flex; gap: 8px; align-items: flex-start;
+      padding: 5px 0; border-bottom: 1px solid #f3f4f6;
+    }
+    .hash-row:last-child { border-bottom: none; }
+    .hash-algo {
+      font-size: 7pt; font-weight: 800; padding: 2px 8px;
+      border-radius: 4px; background: #1e3a5f; color: #fff;
+      min-width: 52px; text-align: center;
+      flex-shrink: 0; margin-top: 1px; letter-spacing: .04em;
+    }
+    .hash-val {
+      font-family: 'Courier New', monospace;
+      font-size: 7.5pt; color: #374151;
+      word-break: break-all; line-height: 1.5;
+    }
+
+    /* ─── ENTROPY ───────────────────────────── */
+    .entropy-num {
+      font-size: 30pt; font-weight: 900; color: #111827;
+      line-height: 1; margin-bottom: 4px; letter-spacing: -0.02em;
+    }
+    .ent-bar { height: 6px; border-radius: 3px; overflow: hidden; background: #e5e7eb; margin-bottom: 5px; }
+    .ent-fill { height: 100%; border-radius: 3px; }
+    .ent-fill.normal   { background: #059669; }
+    .ent-fill.moderate { background: #d97706; }
+    .ent-fill.high, .ent-fill.very_high { background: #dc2626; }
+    .ent-badge {
+      display: inline-block; font-size: 7.5pt; font-weight: 700;
+      padding: 2px 9px; border-radius: 4px; margin-bottom: 5px; letter-spacing: .04em;
+    }
+    .ent-badge.normal   { background: #d1fae5; color: #065f46; }
+    .ent-badge.moderate { background: #fef3c7; color: #92400e; }
+    .ent-badge.high, .ent-badge.very_high { background: #fee2e2; color: #991b1b; }
+    .ent-desc { font-size: 8pt; color: #4b5563; line-height: 1.5; }
+
+    /* ─── PE INFO ───────────────────────────── */
+    .pe-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 5px; margin-bottom: 8px;
+    }
+    .pe-cell {
+      background: #fff; border-radius: 5px;
+      padding: 5px 8px; border: 1px solid #e5e7eb;
+    }
+    .pe-cell label {
+      font-size: 6.5pt; color: #6b7280; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .08em;
+      display: block; margin-bottom: 2px;
+    }
+    .pe-cell span {
+      font-size: 8.5pt; color: #111827;
+      font-family: 'Courier New', monospace; font-weight: 700;
+    }
+    .imp-section-title {
+      font-size: 7.5pt; font-weight: 800; color: #4b5563;
+      text-transform: uppercase; letter-spacing: .07em;
+      margin: 8px 0 4px 0;
+    }
+    .imp-row {
+      font-family: 'Courier New', monospace; font-size: 7.5pt;
+      padding: 3px 9px; background: #fef2f2;
+      border-left: 2.5px solid #dc2626;
+      border-radius: 0 4px 4px 0; margin-bottom: 3px; color: #991b1b;
+    }
+    .imp-dll { color: #6b7280; font-size: 7pt; }
+
+    /* ─── YARA ──────────────────────────────── */
+    .yara-hit-bar {
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 14px; background: #fef2f2;
+      border-radius: 7px; margin-bottom: 9px;
+      border: 1px solid #fca5a5;
+    }
+    .yara-num-big { font-size: 30pt; font-weight: 900; color: #dc2626; line-height: 1; }
+    .yara-hit-text { font-size: 8pt; color: #4b5563; margin-bottom: 3px; }
+    .yara-sev-pill {
+      display: inline-block; font-size: 8pt; font-weight: 800;
+      padding: 2px 10px; border-radius: 4px; letter-spacing: .04em;
+    }
+    .yara-sev-pill.critical { background: #fee2e2; color: #991b1b; }
+    .yara-sev-pill.high     { background: #ffedd5; color: #9a3412; }
+    .yara-sev-pill.medium   { background: #fef3c7; color: #92400e; }
+    .yara-sev-pill.low      { background: #d1fae5; color: #065f46; }
+
+    .yara-rule {
+      background: #f9fafb; border: 1px solid #e5e7eb;
+      border-left: 3px solid transparent;
+      border-radius: 0 6px 6px 0; padding: 7px 10px; margin-bottom: 5px;
+    }
+    .yara-rule.critical { border-left-color: #dc2626; background: #fef2f2; }
+    .yara-rule.high     { border-left-color: #f97316; background: #fff7ed; }
+    .yara-rule.medium   { border-left-color: #d97706; background: #fffbeb; }
+    .yara-rule.low      { border-left-color: #059669; background: #f0fdf4; }
+    .yara-rule-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+    .yara-rule-name { font-size: 8.5pt; font-weight: 800; color: #111827; font-family: 'Courier New', monospace; }
+    .yara-sev-tag {
+      font-size: 6.5pt; font-weight: 800; padding: 2px 7px;
+      border-radius: 3px; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .yara-sev-tag.critical { background: #fee2e2; color: #991b1b; }
+    .yara-sev-tag.high     { background: #ffedd5; color: #9a3412; }
+    .yara-sev-tag.medium   { background: #fef3c7; color: #92400e; }
+    .yara-sev-tag.low      { background: #d1fae5; color: #065f46; }
+    .yara-rule-desc { font-size: 8pt; color: #4b5563; line-height: 1.45; margin-bottom: 4px; }
+    .yara-cat  { display: inline-block; font-size: 7pt; padding: 1px 6px; border-radius: 3px; background: #ede9fe; color: #5b21b6; font-weight: 600; }
+    .yara-tag  { display: inline-block; font-size: 7pt; padding: 1px 5px; border-radius: 3px; background: #f3f4f6; color: #6b7280; margin-left: 3px; font-family: 'Courier New', monospace; }
+
+    /* ─── STRINGS ───────────────────────────── */
+    .str-section { margin-bottom: 9px; }
+    .str-section:last-child { margin-bottom: 0; }
+    .str-sec-hdr {
+      font-size: 7pt; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .09em; color: #4b5563;
+      margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+    }
+    .str-cnt {
+      font-size: 6.5pt; font-weight: 700;
+      padding: 1px 6px; border-radius: 9px;
+      background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb;
+    }
+    .str-item {
+      font-family: 'Courier New', monospace; font-size: 7.5pt;
+      padding: 3px 7px; background: #fff;
+      border-radius: 3px; margin-bottom: 2px;
+      word-break: break-all; line-height: 1.45;
+      border: 1px solid #f3f4f6;
+    }
+    .str-item.url      { color: #1d4ed8; border-left: 2px solid #3b82f6; }
+    .str-item.ip       { color: #6d28d9; border-left: 2px solid #7c3aed; }
+    .str-item.kw       { color: #92400e; border-left: 2px solid #d97706; font-family: inherit; font-size: 8pt; }
+    .str-item.email    { color: #0e7490; border-left: 2px solid #0891b2; }
+    .str-item.registry { color: #86198f; border-left: 2px solid #a21caf; }
+    .str-item.filepath { color: #15803d; border-left: 2px solid #16a34a; }
+    .str-item.mutex    { color: #9f1239; border-left: 2px solid #e11d48; }
+    .str-more { font-size: 7pt; color: #9ca3af; margin-top: 3px; font-style: italic; }
+
+    /* ─── VIRUSTOTAL ────────────────────────── */
+    .vt-score-line { display: flex; align-items: baseline; gap: 4px; margin-bottom: 3px; }
+    .vt-big   { font-size: 32pt; font-weight: 900; color: #dc2626; line-height: 1; }
+    .vt-slash { font-size: 16pt; color: #9ca3af; }
+    .vt-total { font-size: 16pt; color: #6b7280; font-weight: 600; }
+    .vt-caption { font-size: 7.5pt; color: #6b7280; margin-bottom: 7px; }
+    .vt-pills { display: flex; gap: 6px; margin-bottom: 8px; }
+    .vt-pill {
+      background: #fff; border-radius: 6px; padding: 5px 10px;
+      text-align: center; border: 1px solid #e5e7eb; flex: 1;
+    }
+    .vt-pill .pnum { font-size: 15pt; font-weight: 900; line-height: 1; }
+    .vt-pill .plbl { font-size: 6.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+    .vt-pill.mal .pnum { color: #dc2626; }
+    .vt-pill.sus .pnum { color: #d97706; }
+    .vt-pill.cln .pnum { color: #059669; }
+    .vt-bar-labels { display: flex; justify-content: space-between; font-size: 7pt; font-weight: 700; margin-bottom: 4px; }
+    .vt-bar-bg   { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+    .vt-bar-fill { height: 100%; border-radius: 3px; background: #dc2626; }
+    .vt-bar-fill.amber { background: #d97706; }
+    .vt-bar-fill.green { background: #059669; }
+    .vt-link { font-size: 7pt; color: #2563eb; font-family: 'Courier New', monospace; word-break: break-all; }
+
+    .eng-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+    .eng-row  {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 6px; background: #fff;
+      border-radius: 3px; border: 1px solid #f3f4f6;
+    }
+    .eng-dot  { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .eng-dot.malicious  { background: #dc2626; }
+    .eng-dot.suspicious { background: #d97706; }
+    .eng-dot.undetected, .eng-dot.harmless { background: #059669; }
+    .eng-name   { font-size: 7pt; color: #374151; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .eng-result { font-size: 6.5pt; font-weight: 700; flex-shrink: 0; }
+    .eng-result.malicious  { color: #dc2626; }
+    .eng-result.suspicious { color: #d97706; }
+    .eng-result.undetected, .eng-result.harmless { color: #059669; }
+
+    /* ─── MITRE ATT&CK ──────────────────────── */
+    .mitre-stats { display: flex; gap: 7px; margin-bottom: 10px; }
+    .mitre-stat {
+      background: #f9fafb; border: 1px solid #e5e7eb;
+      border-radius: 7px; padding: 7px 10px; text-align: center; flex: 1;
+    }
+    .mitre-stat .mnum { font-size: 17pt; font-weight: 900; line-height: 1; }
+    .mitre-stat .mlbl { font-size: 6.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+    .mitre-stat.c-total  .mnum { color: #ea580c; }
+    .mitre-stat.c-tactic .mnum { color: #2563eb; }
+    .mitre-stat.c-high   .mnum { color: #dc2626; }
+    .mitre-stat.c-med    .mnum { color: #d97706; }
+    .mitre-stat.c-low    .mnum { color: #059669; }
+
+    .tactic-group { margin-bottom: 10px; page-break-inside: avoid; }
+    .tactic-label {
+      font-size: 8pt; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .09em; color: #1f2937;
+      background: #f3f4f6; padding: 5px 10px;
+      border-radius: 4px; margin-bottom: 6px;
+      border-left: 3.5px solid #ea580c;
+    }
+    .technique-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
+    .t-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      border-radius: 5px; padding: 4px 9px;
+      border: 1px solid #e5e7eb; background: #f9fafb;
+      page-break-inside: avoid;
+    }
+    .t-chip.conf-high   { border-color: #fca5a5; background: #fef2f2; }
+    .t-chip.conf-medium { border-color: #fcd34d; background: #fffbeb; }
+    .t-chip.conf-low    { border-color: #86efac; background: #f0fdf4; }
+    .t-chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .t-chip.conf-high   .t-chip-dot { background: #dc2626; }
+    .t-chip.conf-medium .t-chip-dot { background: #d97706; }
+    .t-chip.conf-low    .t-chip-dot { background: #059669; }
+    .t-chip-id   { font-size: 8pt; font-weight: 800; color: #ea580c; font-family: 'Courier New', monospace; }
+    .t-chip-name { font-size: 7.5pt; color: #374151; }
+
+    .evidence-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+    .evidence-table th {
+      background: #f3f4f6; color: #6b7280; text-transform: uppercase;
+      letter-spacing: .06em; padding: 4px 8px;
+      text-align: left; border-bottom: 1.5px solid #e5e7eb; font-size: 7pt;
+    }
+    .evidence-table td {
+      padding: 4px 8px; border-bottom: 1px solid #f3f4f6;
+      color: #374151; vertical-align: top;
+    }
+    .evidence-table tr:last-child td { border-bottom: none; }
+    .evidence-table tr:nth-child(even) td { background: #f9fafb; }
+    .conf-badge { font-size: 6.5pt; font-weight: 800; padding: 2px 6px; border-radius: 3px; }
+    .conf-badge.high   { background: #fee2e2; color: #991b1b; }
+    .conf-badge.medium { background: #fef3c7; color: #92400e; }
+    .conf-badge.low    { background: #d1fae5; color: #065f46; }
+
+    /* ─── SUMMARY BOX ───────────────────────── */
+    .summary-box {
+      border-radius: 8px; padding: 12px 14px;
+      margin-bottom: 12px;
+      border: 1.5px solid transparent;
+      border-left: 5px solid transparent;
+      position: relative;
+    }
+    .summary-box.malicious  { background: #fef2f2; border-color: #fca5a5; border-left-color: #dc2626; }
+    .summary-box.suspicious { background: #fffbeb; border-color: #fcd34d; border-left-color: #d97706; }
+    .summary-box.benign     { background: #f0fdf4; border-color: #86efac; border-left-color: #059669; }
+
+    .summary-title { font-size: 9.5pt; font-weight: 800; margin-bottom: 9px; }
+    .summary-box.malicious  .summary-title { color: #991b1b; }
+    .summary-box.suspicious .summary-title { color: #92400e; }
+    .summary-box.benign     .summary-title { color: #065f46; }
+
+    .sum-reason {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 8pt; color: #1f2937;
+      padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.06); line-height: 1.5;
+    }
+    .sum-reason:last-of-type { border-bottom: none; }
+    .sum-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .sum-dot.critical { background: #dc2626; }
+    .sum-dot.high     { background: #ea580c; }
+    .sum-dot.medium   { background: #d97706; }
+    .sum-dot.low      { background: #059669; }
+
+    .conf-strip {
+      display: flex; align-items: stretch; margin-top: 10px;
+      border-radius: 6px; overflow: hidden;
+      border: 1px solid rgba(0,0,0,0.1); background: rgba(0,0,0,0.03);
+    }
+    .conf-cell {
+      flex: 1; padding: 7px 10px; text-align: center;
+      border-right: 1px solid rgba(0,0,0,0.07);
+    }
+    .conf-cell:last-child { border-right: none; }
+    .conf-cell label { font-size: 6.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; display: block; margin-bottom: 3px; font-weight: 600; }
+    .conf-cell .cval { font-size: 10.5pt; font-weight: 900; line-height: 1; }
+    .conf-cell .cval.malicious  { color: #dc2626; }
+    .conf-cell .cval.suspicious { color: #d97706; }
+    .conf-cell .cval.benign     { color: #059669; }
+    .conf-cell .cval.orange     { color: #ea580c; }
+    .conf-cell .cval.blue       { color: #2563eb; }
+
+    /* ─── CLEAN / NA ────────────────────────── */
+    .clean-box {
+      background: #f0fdf4; border: 1px solid #86efac;
+      border-radius: 6px; padding: 8px 12px;
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .clean-icon  { font-size: 11pt; color: #059669; flex-shrink: 0; }
+    .clean-title { font-size: 8.5pt; font-weight: 700; color: #065f46; margin-bottom: 2px; }
+    .clean-text  { font-size: 7.5pt; color: #374151; }
+    .na-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; }
+    .na-text { font-size: 8pt; color: #6b7280; }
+
+    /* ─── FOOTER ────────────────────────────── */
+    .pdf-footer {
+      margin-top: 18px; padding: 10px 14px;
+      background: #f9fafb; border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      border-top: 2.5px solid #111827;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .footer-left  { font-size: 7.5pt; color: #6b7280; line-height: 1.6; }
+    .footer-right { font-size: 7.5pt; color: #9ca3af; text-align: right; line-height: 1.6; }
+    .footer-hash  { font-family: 'Courier New', monospace; font-size: 6.5pt; color: #6b7280; margin-top: 2px; word-break: break-all; }
+    .footer-brand { font-weight: 800; color: #111827; font-size: 9pt; }
+
+    /* ─── UTILS ─────────────────────────────── */
+    .page-break { page-break-before: always; }
+    .no-break   { page-break-inside: avoid; }
+    .mono { font-family: 'Courier New', monospace; }
+    .mt4  { margin-top: 4px; }
+    .mt8  { margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+{% set cls = report.classification | lower %}
+
+<div class="watermark {{ cls }}">{{ report.classification | upper }}</div>
+
+<!-- ════════════════════════════════════
+     HEADER
+════════════════════════════════════ -->
+<div class="pdf-header">
+  <div class="header-left">
+    {% if logo_b64 %}
+      <div class="logo-wrap"><img src="{{ logo_b64 }}" alt="MalVizor"></div>
+    {% else %}
+      <div class="logo-fallback">M</div>
+    {% endif %}
+    <div>
+      <div class="tool-name">MalVizor</div>
+      <div class="tool-sub">Static Threat Analysis Report</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-label">Generated</div>
+    <div class="header-date">{{ generated_at }}</div>
+    <div class="header-hash">SHA256: {{ report.summary.sha256[:32] if report.summary.sha256 else 'N/A' }}…</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     VERDICT
+════════════════════════════════════ -->
+<div class="verdict-box {{ cls }}">
+  <div class="score-wrap">
+    <div class="score-circle {{ cls }}">{{ report.threat_score }}</div>
+    <div class="score-label">Threat Score</div>
+  </div>
+  <div class="verdict-info">
+    <div class="verdict-cls {{ cls }}">{{ report.classification | upper }}</div>
+    <div class="verdict-meta">
+      <div class="vm-item"><label>File Name</label><span>{{ report.summary.file_name }}</span></div>
+      <div class="vm-item"><label>File Size</label><span>{{ report.summary.file_size }}</span></div>
+      <div class="vm-item"><label>File Type</label><span>{{ report.summary.file_type or '—' }}</span></div>
+      <div class="vm-item"><label>Analyzed</label><span>{{ report.summary.timestamp | format_datetime }}</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     THREAT INDICATORS
+════════════════════════════════════ -->
+{% if report.indicators %}
+<div class="sec-head red">
+  ⚠ Threat Indicators
+  <span class="sec-badge">{{ report.indicators | length }} found</span>
+</div>
+<div class="no-break">
+  {% for ind in report.indicators %}
+  <div class="ind-row {{ ind.severity | lower }}">
+    <span class="ind-sev {{ ind.severity | lower }}">{{ ind.severity }}</span>
+    <span class="ind-pts">+{{ ind.points }}</span>
+    <span class="ind-text">{{ ind.description }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════
+     HASHES + ENTROPY
+════════════════════════════════════ -->
+<div class="two-col">
+  <div>
+    <div class="sec-head blue">🔑 File Hashes</div>
+    <div class="card no-break">
+      {% if report.static_analysis.hashes %}
+        {% for algo, value in report.static_analysis.hashes.items() %}
+        <div class="hash-row">
+          <span class="hash-algo">{{ algo | upper }}</span>
+          <span class="hash-val">{{ value }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="na-text">No hash data available.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div>
+    <div class="sec-head amber">📊 Entropy Analysis</div>
+    {% if report.static_analysis.entropy %}
+    {% set ent = report.static_analysis.entropy %}
+    {% set ep = ((ent.value / 8) * 100) | round | int %}
+    <div class="card no-break">
+      <div class="entropy-num">{{ ent.value }}</div>
+      <div class="ent-bar"><div class="ent-fill {{ ent.level }}" style="width:{{ ep }}%"></div></div>
+      <span class="ent-badge {{ ent.level }}">{{ ent.level | replace('_',' ') | title }}</span>
+      <div class="ent-desc">{{ ent.description }}</div>
+    </div>
+    {% else %}
+    <div class="na-box"><div class="na-text">Entropy data unavailable.</div></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     PE INFORMATION
+════════════════════════════════════ -->
+{% set pe = report.static_analysis.pe_info %}
+{% if pe %}
+<div class="sec-head cyan">🔩 PE Information</div>
+<div class="no-break">
+  {% if pe.available %}
+  <div class="card">
+    <div class="pe-grid">
+      {% if pe.machine_type %}<div class="pe-cell"><label>Architecture</label><span>{{ pe.machine_type }}</span></div>{% endif %}
+      {% if pe.subsystem   %}<div class="pe-cell"><label>Subsystem</label><span>{{ pe.subsystem }}</span></div>{% endif %}
+      {% if pe.entry_point %}<div class="pe-cell"><label>Entry Point</label><span>{{ pe.entry_point }}</span></div>{% endif %}
+      {% if pe.compile_time%}<div class="pe-cell"><label>Compile Time</label><span>{{ pe.compile_time }}</span></div>{% endif %}
+      {% if pe.sections    %}<div class="pe-cell"><label>Sections</label><span>{{ pe.sections | length }}</span></div>{% endif %}
+      <div class="pe-cell"><label>PE Type</label><span>x86 PE</span></div>
+    </div>
+    {% if pe.packer_hints %}
+      {% for hint in pe.packer_hints %}
+      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:5px;padding:5px 9px;font-size:8pt;color:#991b1b;margin-bottom:3px">⚠ {{ hint }}</div>
+      {% endfor %}
+    {% endif %}
+    {% if pe.suspicious_imports %}
+    <div class="imp-section-title">Suspicious Imports ({{ pe.suspicious_imports | length }})</div>
+    {% for imp in pe.suspicious_imports %}
+    <div class="imp-row">{{ imp.function }} <span class="imp-dll">({{ imp.dll }})</span></div>
+    {% endfor %}
+    {% else %}
+    <div class="clean-box mt8">
+      <span class="clean-icon">✓</span>
+      <div><div class="clean-title">No suspicious imports detected</div><div class="clean-text">No known dangerous API calls in import table.</div></div>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="na-box"><div class="na-text">{{ pe.reason }}</div></div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════
+     YARA DETECTION
+════════════════════════════════════ -->
+{% set yr = report.static_analysis.yara %}
+<div class="sec-head purple">🛡 YARA Rule Detection</div>
+<div class="no-break">
+  {% if not yr or not yr.available %}
+  <div class="na-box"><div class="na-text">YARA unavailable: {{ yr.reason if yr else "yara-python not installed" }}</div></div>
+  {% elif yr.available and yr.total_matches == 0 %}
+  <div class="clean-box">
+    <span class="clean-icon">✓</span>
+    <div><div class="clean-title">No YARA rules matched</div><div class="clean-text">Scanned against all loaded rules — no signatures triggered.</div></div>
+  </div>
+  {% elif yr.available and yr.total_matches > 0 %}
+  <div class="yara-hit-bar">
+    <div class="yara-num-big">{{ yr.total_matches }}</div>
+    <div>
+      <div class="yara-hit-text">rule{{ 's' if yr.total_matches != 1 }} matched — highest severity:</div>
+      <span class="yara-sev-pill {{ yr.highest_severity }}">{{ yr.highest_severity | upper }}</span>
+    </div>
+  </div>
+  {% for match in yr.matched %}
+  <div class="yara-rule {{ match.severity | lower }}">
+    <div class="yara-rule-top">
+      <div class="yara-rule-name">{{ match.rule }}</div>
+      <span class="yara-sev-tag {{ match.severity | lower }}">{{ match.severity | upper }}</span>
+    </div>
+    <div class="yara-rule-desc">{{ match.description }}</div>
+    <span class="yara-cat">{{ match.category }}</span>
+    {% for tag in match.tags %}<span class="yara-tag">{{ tag }}</span>{% endfor %}
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<!-- ════════════════════════════════════
+     INTERESTING STRINGS
+════════════════════════════════════ -->
+{% if report.static_analysis.strings and report.static_analysis.strings.interesting %}
+{% set s = report.static_analysis.strings.interesting %}
+{% set has_any = s.urls or s.ip_addresses or s.suspicious_keywords or s.emails or s.file_paths or s.registry_keys or s.mutex_names %}
+{% if has_any %}
+<div class="sec-head green">🔍 Interesting Strings</div>
+<div class="card no-break">
+  {% if s.urls %}
+  <div class="str-section">
+    <div class="str-sec-hdr">URLs / Domains <span class="str-cnt">{{ s.urls | length }}</span></div>
+    {% for u in s.urls[:8] %}<div class="str-item url">{{ u }}</div>{% endfor %}
+    {% if s.urls|length > 8 %}<div class="str-more">+ {{ s.urls|length - 8 }} more</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if s.ip_addresses %}
+  <div class="str-section">
+    <div class="str-sec-hdr">IP Addresses <span class="str-cnt">{{ s.ip_addresses | length }}</span></div>
+    {% for ip in s.ip_addresses[:8] %}<div class="str-item ip">{{ ip }}</div>{% endfor %}
+    {% if s.ip_addresses|length > 8 %}<div class="str-more">+ {{ s.ip_addresses|length - 8 }} more</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if s.emails %}
+  <div class="str-section">
+    <div class="str-sec-hdr">Email Addresses <span class="str-cnt">{{ s.emails | length }}</span></div>
+    {% for e in s.emails[:6] %}<div class="str-item email">{{ e }}</div>{% endfor %}
+    {% if s.emails|length > 6 %}<div class="str-more">+ {{ s.emails|length - 6 }} more</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if s.registry_keys %}
+  <div class="str-section">
+    <div class="str-sec-hdr">Registry Keys <span class="str-cnt">{{ s.registry_keys | length }}</span></div>
+    {% for r in s.registry_keys[:6] %}<div class="str-item registry">{{ r }}</div>{% endfor %}
+    {% if s.registry_keys|length > 6 %}<div class="str-more">+ {{ s.registry_keys|length - 6 }} more</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if s.file_paths %}
+  <div class="str-section">
+    <div class="str-sec-hdr">File Paths <span class="str-cnt">{{ s.file_paths | length }}</span></div>
+    {% for p in s.file_paths[:6] %}<div class="str-item filepath">{{ p }}</div>{% endfor %}
+    {% if s.file_paths|length > 6 %}<div class="str-more">+ {{ s.file_paths|length - 6 }} more</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if s.mutex_names %}
+  <div class="str-section">
+    <div class="str-sec-hdr">Mutex / GUIDs <span class="str-cnt">{{ s.mutex_names | length }}</span></div>
+    {% for m in s.mutex_names[:6] %}<div class="str-item mutex">{{ m }}</div>{% endfor %}
+    {% if s.mutex_names|length > 6 %}<div class="str-more">+ {{ s.mutex_names|length - 6 }} more</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if s.suspicious_keywords %}
+  <div class="str-section">
+    <div class="str-sec-hdr">Suspicious Keywords <span class="str-cnt">{{ s.suspicious_keywords | length }}</span></div>
+    {% for k in s.suspicious_keywords[:12] %}<div class="str-item kw">{{ k }}</div>{% endfor %}
+    {% if s.suspicious_keywords|length > 12 %}<div class="str-more">+ {{ s.suspicious_keywords|length - 12 }} more</div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ════════════════════════════════════
+     VIRUSTOTAL
+════════════════════════════════════ -->
+{% set vt = report.static_analysis.virustotal %}
+<div class="sec-head red page-break">🔬 VirusTotal &amp; Engine Results</div>
+<div class="no-break">
+  {% if not vt or (not vt.available and vt.reason == "no_key") %}
+  <div class="na-box"><div class="na-text">⚠ VirusTotal API key not configured. Set <span class="mono">VIRUSTOTAL_API_KEY</span> in config.py.</div></div>
+
+  {% elif vt.available and not vt.found %}
+  <div class="clean-box">
+    <span class="clean-icon">🔍</span>
+    <div><div class="clean-title">Not found in VirusTotal</div><div class="clean-text">Hash not previously submitted — file may be new or private.</div></div>
+  </div>
+
+  {% elif vt.available and vt.found %}
+  {% set pct = ((vt.malicious / vt.total_engines) * 100) | round | int if vt.total_engines > 0 else 0 %}
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Detection Score</div>
+      <div class="vt-score-line">
+        <span class="vt-big">{{ vt.malicious }}</span>
+        <span class="vt-slash">/</span>
+        <span class="vt-total">{{ vt.total_engines }}</span>
+      </div>
+      <div class="vt-caption">antivirus engines flagged this file as malicious</div>
+      <div class="vt-pills">
+        <div class="vt-pill mal"><div class="pnum">{{ vt.malicious }}</div><div class="plbl">Malicious</div></div>
+        {% if vt.suspicious is defined and vt.suspicious %}
+        <div class="vt-pill sus"><div class="pnum">{{ vt.suspicious }}</div><div class="plbl">Suspicious</div></div>
+        {% endif %}
+        <div class="vt-pill cln"><div class="pnum">{{ vt.undetected }}</div><div class="plbl">Clean</div></div>
+      </div>
+      <div class="vt-bar-labels">
+        <span style="color:#dc2626">{{ pct }}% detection rate</span>
+        <span style="color:#059669">{{ vt.undetected }} clean</span>
+      </div>
+      <div class="vt-bar-bg">
+        <div class="vt-bar-fill {% if pct == 0 %}green{% elif pct < 25 %}amber{% endif %}" style="width:{{ [pct,100]|min }}%"></div>
+      </div>
+      {% if vt.vt_link %}
+      <div style="margin-top:5px"><div style="font-size:7pt;color:#9ca3af;margin-bottom:2px">Full report:</div><div class="vt-link">{{ vt.vt_link }}</div></div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <div class="card-title">Engine Results</div>
+      {% if vt.engines %}
+      <div class="eng-grid">
+        {% for eng in vt.engines %}
+        <div class="eng-row">
+          <span class="eng-dot {{ eng.category }}"></span>
+          <span class="eng-name">{{ eng.name }}</span>
+          <span class="eng-result {{ eng.category }}">{% if eng.category in ['malicious','suspicious'] %}{{ eng.result[:16] }}{% else %}Clean{% endif %}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<div class="na-text mt4">No engine results available.</div>{% endif %}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="na-box"><div class="na-text">Lookup failed: {{ vt.reason if vt else "unknown error" }}</div></div>
+  {% endif %}
+</div>
+
+<!-- ════════════════════════════════════
+     MITRE ATT&CK
+════════════════════════════════════ -->
+{% set atk = report.static_analysis.mitre_attack %}
+<div class="sec-head orange">🎯 MITRE ATT&amp;CK Mapping</div>
+<div class="no-break">
+{% if not atk or not atk.available %}
+<div class="na-box"><div class="na-text">MITRE mapping unavailable: {{ atk.reason if atk else 'analysis error' }}</div></div>
+{% elif atk.total == 0 %}
+<div class="clean-box">
+  <span class="clean-icon">✓</span>
+  <div><div class="clean-title">No ATT&amp;CK techniques mapped</div><div class="clean-text">No indicators matched known ATT&amp;CK technique patterns.</div></div>
+</div>
+{% else %}
+<div class="mitre-stats">
+  <div class="mitre-stat c-total"><div class="mnum">{{ atk.total }}</div><div class="mlbl">Techniques</div></div>
+  <div class="mitre-stat c-tactic"><div class="mnum">{{ atk.tactic_count }}</div><div class="mlbl">Tactics</div></div>
+  <div class="mitre-stat c-high"><div class="mnum">{{ atk.high_count }}</div><div class="mlbl">High Conf.</div></div>
+  <div class="mitre-stat c-med"><div class="mnum">{{ atk.medium_count }}</div><div class="mlbl">Med Conf.</div></div>
+  <div class="mitre-stat c-low"><div class="mnum">{{ atk.low_count }}</div><div class="mlbl">Low Conf.</div></div>
+</div>
+{% for tactic, techniques in atk.tactics_map.items() %}
+<div class="tactic-group">
+  <div class="tactic-label">{{ tactic }}</div>
+  <div class="technique-chips">
+    {% for t in techniques %}
+    <div class="t-chip conf-{{ t.confidence }}">
+      <span class="t-chip-dot"></span>
+      <span class="t-chip-id">{{ t.id }}</span>
+      <span class="t-chip-name">{{ t.name }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <table class="evidence-table">
+    <thead><tr>
+      <th style="width:88px">Technique</th>
+      <th>Name</th>
+      <th style="width:62px">Confidence</th>
+      <th>Evidence</th>
+    </tr></thead>
+    <tbody>
+      {% for t in techniques %}
+      <tr>
+        <td style="font-family:'Courier New',monospace;font-weight:800;color:#ea580c">{{ t.id }}</td>
+        <td style="font-weight:600;color:#111827">{{ t.name }}</td>
+        <td><span class="conf-badge {{ t.confidence }}">{{ t.confidence | upper }}</span></td>
+        <td style="color:#6b7280;font-size:7pt">{{ t.evidence or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+<div style="font-size:7pt;color:#9ca3af;margin-top:6px;text-align:right">MITRE ATT&amp;CK® v15 · Enterprise · https://attack.mitre.org</div>
+{% endif %}
+</div>
+
+<!-- ════════════════════════════════════
+     CLASSIFICATION SUMMARY
+════════════════════════════════════ -->
+{% set score = report.threat_score %}
+{% set conf  = "HIGH" if score >= 70 else ("MEDIUM" if score >= 35 else "LOW") %}
+
+<div class="sec-head {% if cls=='malicious' %}red{% elif cls=='suspicious' %}amber{% else %}green{% endif %}">
+  📋 Classification Summary
+</div>
+
+<div class="summary-box {{ cls }}">
+  <div class="summary-title">
+    {% if cls == 'malicious' %}⛔ This file is classified as MALICIOUS — key findings:
+    {% elif cls == 'suspicious' %}⚠ This file is classified as SUSPICIOUS — key findings:
+    {% else %}✓ This file appears BENIGN — supporting evidence:{% endif %}
+  </div>
+
+  {% if report.static_analysis.entropy %}{% set ent2 = report.static_analysis.entropy %}
+    {% if ent2.level == 'very_high' %}<div class="sum-reason"><span class="sum-dot critical"></span>Very high entropy ({{ ent2.value }}) — file is likely packed or encrypted to evade detection</div>
+    {% elif ent2.level == 'high' %}<div class="sum-reason"><span class="sum-dot high"></span>High entropy ({{ ent2.value }}) — file may be compressed or obfuscated</div>
+    {% elif ent2.level in ['normal','moderate'] %}<div class="sum-reason"><span class="sum-dot low"></span>Normal entropy ({{ ent2.value }}) — file content appears unobfuscated</div>{% endif %}
+  {% endif %}
+
+  {% set yr2 = report.static_analysis.yara %}
+  {% if yr2 and yr2.available and yr2.total_matches > 0 %}
+    {% if yr2.highest_severity == 'critical' %}<div class="sum-reason"><span class="sum-dot critical"></span>{{ yr2.total_matches }} YARA rule{{ 's' if yr2.total_matches!=1 }} matched — highest severity CRITICAL ({{ yr2.matched[0].category if yr2.matched else 'malware' }})</div>
+    {% elif yr2.highest_severity == 'high' %}<div class="sum-reason"><span class="sum-dot high"></span>{{ yr2.total_matches }} YARA rule{{ 's' if yr2.total_matches!=1 }} matched — includes high-severity patterns</div>
+    {% else %}<div class="sum-reason"><span class="sum-dot medium"></span>{{ yr2.total_matches }} YARA rule{{ 's' if yr2.total_matches!=1 }} matched — {{ yr2.highest_severity }} severity</div>{% endif %}
+  {% elif yr2 and yr2.available and yr2.total_matches == 0 %}
+  <div class="sum-reason"><span class="sum-dot low"></span>No YARA rules matched — no known malware signatures detected</div>
+  {% endif %}
+
+  {% if report.static_analysis.strings and report.static_analysis.strings.interesting %}
+  {% set si = report.static_analysis.strings.interesting %}
+  {% set kws = si.suspicious_keywords if si.suspicious_keywords else [] %}
+  {% set ts = (si.urls|length if si.urls else 0)+(si.ip_addresses|length if si.ip_addresses else 0)+(kws|length)+(si.emails|length if si.emails else 0)+(si.file_paths|length if si.file_paths else 0)+(si.registry_keys|length if si.registry_keys else 0)+(si.mutex_names|length if si.mutex_names else 0) %}
+  {% if ts > 0 %}
+    {% if kws|length > 3 %}<div class="sum-reason"><span class="sum-dot high"></span>{{ ts }} suspicious strings — {{ kws|length }} malware keyword{{ 's' if kws|length!=1 }}, {{ si.urls|length if si.urls else 0 }} URL{{ 's' if (si.urls|length if si.urls else 0)!=1 }}, {{ si.ip_addresses|length if si.ip_addresses else 0 }} IP address{{ 'es' if (si.ip_addresses|length if si.ip_addresses else 0)!=1 }}</div>
+    {% elif kws|length > 0 %}<div class="sum-reason"><span class="sum-dot medium"></span>{{ kws|length }} suspicious keyword{{ 's' if kws|length!=1 }} found in extracted strings</div>
+    {% elif si.urls %}<div class="sum-reason"><span class="sum-dot medium"></span>{{ si.urls|length }} suspicious URL{{ 's' if si.urls|length!=1 }} found embedded in file strings</div>{% endif %}
+  {% endif %}
+  {% endif %}
+
+  {% if atk and atk.available and atk.total > 0 %}
+  <div class="sum-reason"><span class="sum-dot {{ 'critical' if atk.high_count > 3 else 'high' }}"></span>{{ atk.total }} MITRE ATT&amp;CK technique{{ 's' if atk.total!=1 }} mapped across {{ atk.tactic_count }} tactic{{ 's' if atk.tactic_count!=1 }} ({{ atk.high_count }} high-confidence)</div>
+  {% endif %}
+
+  {% set vt2 = report.static_analysis.virustotal %}
+  {% if vt2 and vt2.available and vt2.found %}
+    {% if vt2.malicious > 0 %}{% set vp = ((vt2.malicious/vt2.total_engines)*100)|round|int %}
+    <div class="sum-reason"><span class="sum-dot {{ 'critical' if vp > 50 else 'high' }}"></span>VirusTotal: {{ vt2.malicious }}/{{ vt2.total_engines }} engines flagged this file ({{ vp }}% detection rate)</div>
+    {% else %}<div class="sum-reason"><span class="sum-dot low"></span>VirusTotal: 0/{{ vt2.total_engines }} engines detected any threat — clean in VT database</div>{% endif %}
+  {% elif vt2 and vt2.available and not vt2.found %}
+  <div class="sum-reason"><span class="sum-dot medium"></span>Not found in VirusTotal — hash never submitted; treat with caution</div>
+  {% endif %}
+
+  {% set pe2 = report.static_analysis.pe_info %}
+  {% if pe2 and pe2.available and pe2.suspicious_imports %}
+  <div class="sum-reason"><span class="sum-dot high"></span>{{ pe2.suspicious_imports|length }} suspicious API import{{ 's' if pe2.suspicious_imports|length!=1 }} detected ({{ pe2.suspicious_imports[0].function if pe2.suspicious_imports else '' }}{% if pe2.suspicious_imports|length > 1 %} + {{ pe2.suspicious_imports|length - 1 }} more{% endif %})</div>
+  {% endif %}
+
+  <div class="conf-strip">
+    <div class="conf-cell"><label>Threat Score</label><div class="cval {{ cls }}">{{ score }}<span style="font-size:7.5pt;font-weight:600">/100</span></div></div>
+    <div class="conf-cell"><label>Confidence</label><div class="cval {{ cls }}">{{ conf }}</div></div>
+    <div class="conf-cell"><label>Verdict</label><div class="cval {{ cls }}">{{ report.classification | upper }}</div></div>
+    {% if atk and atk.available %}<div class="conf-cell"><label>ATT&amp;CK</label><div class="cval orange">{{ atk.total }} technique{{ 's' if atk.total!=1 }}</div></div>{% endif %}
+    {% if yr2 and yr2.available %}<div class="conf-cell"><label>YARA Hits</label><div class="cval {{ 'malicious' if yr2.total_matches > 0 else 'benign' }}">{{ yr2.total_matches }}</div></div>{% endif %}
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     FOOTER
+════════════════════════════════════ -->
+<div class="pdf-footer">
+  <div class="footer-left">
+    <span class="footer-brand">MalVizor</span> — Static Threat Analysis Report<br>
+    Auto-generated · Combine with human analysis for operational decisions · v1.0
+  </div>
+  <div class="footer-right">
+    Generated: {{ generated_at }}<br>
+    <div class="footer-hash">{{ report.summary.sha256 or 'N/A' }}</div>
+  </div>
+</div>
+
+</body>
+</html>

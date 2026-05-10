@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report — {{ report.summary.file_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #04080f; --bg-base: #0a0d16; --bg-panel: #0e1220; --bg-card: #111828; --bg-elevated: #151c2e;
+      --border-dim: rgba(255,255,255,0.07); --border-mid: rgba(255,255,255,0.12); --border-cyan: rgba(56,189,248,0.3);
+      --text-bright: #f0f4ff; --text-body: #c8d3e8; --text-muted: #7a8ba0; --text-ghost: #3d4f63;
+      --cyan: #38bdf8; --cyan-dim: rgba(56,189,248,0.12); --red: #f87171; --red-dim: rgba(248,113,113,0.1);
+      --amber: #fbbf24; --amber-dim: rgba(251,191,36,0.1); --green: #34d399; --green-dim: rgba(52,211,153,0.1);
+      --purple: #a78bfa; --orange: #fb923c;
+      --mono: 'JetBrains Mono', 'Courier New', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #04080f; font-family: var(--sans); color: var(--text-body); min-height: 100vh; }
+
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 60%, rgba(20,184,166,0.13) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 35%, rgba(139,92,246,0.11) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 90%, rgba(56,189,248,0.07) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 10%, rgba(167,139,250,0.06) 0%, transparent 45%);
+      pointer-events: none;
+      z-index: 0;
+      animation: aurora 14s ease-in-out infinite alternate;
+    }
+    @keyframes aurora {
+      0%   { opacity: 0.7; transform: scale(1)    translateY(0px); }
+      33%  { opacity: 1;   transform: scale(1.04) translateY(-12px); }
+      66%  { opacity: 0.8; transform: scale(0.97) translateY(8px); }
+      100% { opacity: 1;   transform: scale(1.03) translateY(-6px); }
+    }
+
+    body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.018) 2px, rgba(0,0,0,0.018) 4px); pointer-events: none; z-index: 9999; }
+    .bg-grid { position: fixed; inset: 0; pointer-events: none; z-index: 0; background-image: linear-gradient(rgba(20,184,166,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(20,184,166,0.015) 1px, transparent 1px); background-size: 48px 48px; }
+    #bug-canvas { position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; pointer-events:none !important; z-index:-1 !important; }
+
+    /* ══════════════════════════════════════════════════
+       GUEST BANNER  (matches index.html exactly)
+    ══════════════════════════════════════════════════ */
+    .guest-banner {
+      display: none;
+      position: relative; z-index: 150;
+      background: linear-gradient(90deg, rgba(167,139,250,0.07) 0%, rgba(56,189,248,0.05) 100%);
+      border-bottom: 1px solid rgba(167,139,250,0.18);
+      padding: 9px 2rem;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: var(--sans); font-size: 12px; color: var(--text-muted);
+    }
+    .guest-banner.visible { display: flex; }
+    .guest-banner svg { width: 13px; height: 13px; stroke: var(--purple); fill: none; stroke-width: 2; flex-shrink: 0; }
+    .guest-banner strong { color: var(--purple); font-weight: 700; }
+    .guest-banner a { color: var(--cyan); font-weight: 600; text-decoration: none; border-bottom: 1px solid rgba(56,189,248,0.3); transition: border-color 0.15s; }
+    .guest-banner a:hover { border-color: var(--cyan); }
+
+    /* ══════════════════════════════════════════════════
+       SESSION BADGE  (matches index.html exactly)
+    ══════════════════════════════════════════════════ */
+    .session-badge {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 12px;
+      border-radius: 7px;
+      font-family: var(--mono); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.07em;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+    .session-badge.guest {
+      background: rgba(167,139,250,0.08);
+      border-color: rgba(167,139,250,0.25);
+      color: var(--purple);
+    }
+    .session-badge.loggedin {
+      background: rgba(52,211,153,0.07);
+      border-color: rgba(52,211,153,0.22);
+      color: var(--green);
+    }
+    .session-badge svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+    .session-badge .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 5px currentColor; flex-shrink: 0; animation: blink 2s ease-in-out infinite; }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    /* ══════════════════════════════════════════════════
+       HEADER
+    ══════════════════════════════════════════════════ */
+    .header { position: sticky; top: 0; z-index: 200; background: rgba(4,8,15,0.94); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-dim); padding: 0 2rem; height: 62px; display: flex; align-items: center; justify-content: space-between; }
+    .header::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--cyan) 30%, var(--cyan) 70%, transparent); opacity: 0.22; }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { width: 36px; height: 36px; background: transparent; display: flex; align-items: center; justify-content: center; }
+    .logo-icon img { width: 36px; height: 36px; object-fit: contain; display: block; }
+    .logo-icon svg { width: 18px; height: 18px; stroke: var(--cyan); stroke-width: 1.5; fill: none; display: none; }
+    .logo-name { font-family: var(--sans); font-size: 15px; font-weight: 700; color: var(--text-bright); letter-spacing: 0.01em; }
+    .logo-sub  { font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 1px; }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+
+    /* Status pill (online dot) */
+    .status-pill { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--green); letter-spacing: 0.08em; }
+    .status-dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 2s ease-in-out infinite; }
+
+    .pdf-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #1e40af, #2563eb); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; box-shadow: 0 4px 14px rgba(37,99,235,0.3); }
+    .pdf-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.5); }
+    .pdf-btn svg { width: 14px; height: 14px; stroke: #fff; fill: none; stroke-width: 2; flex-shrink: 0; }
+    .pdf-btn.loading { opacity: 0.7; pointer-events: none; }
+    .pdf-btn .spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .pdf-na { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 11px; color: var(--text-ghost); border: 1px solid var(--border-dim); border-radius: 7px; padding: 6px 12px; }
+    .pdf-na svg { width: 12px; height: 12px; stroke: var(--text-ghost); fill: none; stroke-width: 2; }
+
+    .back-btn { font-family: var(--sans); font-size: 12px; color: var(--text-muted); border: 1px solid var(--border-dim); padding: 6px 14px; border-radius: 6px; text-decoration: none; transition: all 0.15s; }
+    .back-btn:hover { color: var(--cyan); border-color: rgba(56,189,248,0.3); }
+
+    /* Unified auth button — adapts for logout vs exit-guest */
+    .header-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--text-muted); border: 1px solid var(--border-dim); padding: 6px 12px; border-radius: 6px; text-decoration: none; letter-spacing: 0.04em; transition: all 0.15s; cursor: pointer; background: none; }
+    .header-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .header-btn.logout:hover     { color: var(--red);  border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.05); }
+    .header-btn.exit-guest:hover { color: var(--cyan); border-color: rgba(56,189,248,0.3);  background: rgba(56,189,248,0.05); }
+
+    .page-body { zoom: 1.2; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.75rem 0; position: relative; z-index: 2; }
+
+    /* ══════════════════════════════════════════════════
+       ALL ORIGINAL REPORT STYLES — UNCHANGED
+    ══════════════════════════════════════════════════ */
+    .hero { background: var(--bg-panel); border: 1px solid var(--border-dim); border-radius: 14px; padding: 1.5rem 2rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 2rem; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .hero.benign::before    { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+    .hero.suspicious::before{ background: linear-gradient(90deg, transparent, var(--amber), transparent); }
+    .hero.malicious::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+
+    .score-ring { position: relative; width: 88px; height: 88px; flex-shrink: 0; background: transparent; }
+    .score-ring svg { width: 88px; height: 88px; transform: rotate(-90deg); background: transparent; overflow: visible; }
+    .ring-bg { stroke: rgba(255,255,255,0.06); stroke-width: 8; fill: none; }
+    .ring-fg { stroke-width: 8; fill: none; stroke-linecap: round; stroke-dasharray: 220; }
+    .benign     .ring-fg { stroke: var(--green); }
+    .suspicious .ring-fg { stroke: var(--amber); }
+    .malicious  .ring-fg { stroke: var(--red); }
+    .score-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 22px; font-weight: 700; min-width: 88px; text-align: center; }
+    .benign     .score-num { color: var(--green); }
+    .suspicious .score-num { color: var(--amber); }
+    .malicious  .score-num { color: var(--red); }
+
+    .hero-info { flex: 1; }
+    .hero-cls { font-family: var(--sans); font-size: 28px; font-weight: 800; margin-bottom: 0.75rem; letter-spacing: 0.04em; }
+    .benign     .hero-cls { color: var(--green); }
+    .suspicious .hero-cls { color: var(--amber); }
+    .malicious  .hero-cls { color: var(--red); }
+    .hero-meta { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.75rem; }
+    .meta-item label { font-family: var(--mono); font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.12em; display: block; margin-bottom: 3px; }
+    .meta-item span  { font-family: var(--sans); font-size: 13px; color: var(--text-bright); font-weight: 600; }
+
+    .row { display: grid; gap: 1rem; margin-bottom: 1rem; }
+    .row-3 { grid-template-columns: 1fr 1fr 1fr; align-items: stretch; }
+    .row-main-side { grid-template-columns: 1.3fr 1fr; align-items: stretch; }
+    .row-main-side > .card-red { display: flex; flex-direction: column; }
+    .row-main-side > .card-red .card-hdr { flex-shrink: 0; }
+    .row-main-side > .card-red .card-body { flex: 1; min-height: 0; padding: 0 !important; display: flex; flex-direction: column; }
+    .row-2-equal { grid-template-columns: 1fr 1fr; }
+    .col-stack { display: flex; flex-direction: column; gap: 1rem; flex: 1; min-height: 0; }
+
+    .card { background: var(--bg-panel); border: 1px solid var(--border-dim); border-radius: 12px; overflow: hidden; position: relative; z-index: 2; transition: transform 0.32s cubic-bezier(.22,.68,0,1.2), opacity 0.28s, box-shadow 0.32s, filter 0.28s; cursor: pointer; }
+    .card-red    { border-top: 2px solid rgba(248,113,113,0.6); }
+    .card-amber  { border-top: 2px solid rgba(251,191,36,0.6); }
+    .card-blue   { border-top: 2px solid rgba(56,189,248,0.6); }
+    .card-purple { border-top: 2px solid rgba(167,139,250,0.6); }
+    .card-green  { border-top: 2px solid rgba(52,211,153,0.6); }
+    .card-cyan   { border-top: 2px solid rgba(56,189,248,0.4); }
+    .card-orange { border-top: 2px solid rgba(251,146,60,0.7); }
+    .card-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.15rem; border-bottom: 1px solid var(--border-dim); }
+    .card-title { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--text-bright); text-transform: uppercase; letter-spacing: 0.08em; }
+    .card-title .icon { font-size: 13px; }
+    .card-body  { padding: 1rem 1.15rem; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 4px; font-family: var(--sans); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .badge-red    { background: rgba(248,113,113,0.12); color: var(--red);    border: 1px solid rgba(248,113,113,0.22); }
+    .badge-amber  { background: rgba(251,191,36,0.12);  color: var(--amber);  border: 1px solid rgba(251,191,36,0.22); }
+    .badge-green  { background: rgba(52,211,153,0.12);  color: var(--green);  border: 1px solid rgba(52,211,153,0.22); }
+    .badge-blue   { background: rgba(56,189,248,0.12);  color: var(--cyan);   border: 1px solid rgba(56,189,248,0.22); }
+    .badge-purple { background: rgba(167,139,250,0.12); color: var(--purple); border: 1px solid rgba(167,139,250,0.22); }
+    .badge-orange { background: rgba(251,146,60,0.12);  color: var(--orange); border: 1px solid rgba(251,146,60,0.22); }
+    .badge-gray   { background: rgba(74,85,104,0.12);   color: var(--text-muted); }
+
+    .indicator { display: flex; align-items: flex-start; gap: 10px; padding: 0.6rem 0.85rem; border-radius: 7px; margin-bottom: 0.45rem; border-left: 2px solid transparent; }
+    .indicator:last-child { margin-bottom: 0; }
+    .indicator.high     { background: rgba(220,38,38,0.05);  border-color: #dc2626; }
+    .indicator.medium   { background: rgba(234,179,8,0.05);  border-color: #eab308; }
+    .indicator.critical { background: rgba(239,68,68,0.08);  border-color: var(--red); }
+    .indicator.low      { background: rgba(16,185,129,0.05); border-color: var(--green); }
+    .ind-badge { font-family: var(--sans); font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 3px; flex-shrink: 0; margin-top: 1px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .ind-badge.high     { background: rgba(220,38,38,0.18);  color: var(--red); }
+    .ind-badge.medium   { background: rgba(234,179,8,0.18);  color: var(--amber); }
+    .ind-badge.critical { background: rgba(239,68,68,0.2);   color: #fca5a5; }
+    .ind-badge.low      { background: rgba(16,185,129,0.18); color: var(--green); }
+    .ind-score { font-family: var(--mono); font-size: 10px; color: var(--text-muted); flex-shrink: 0; margin-top: 2px; }
+    .ind-desc  { font-family: var(--sans); font-size: 13px; color: var(--text-body); flex: 1; line-height: 1.5; }
+
+    .hash-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 0; border-bottom: 1px solid var(--border-dim); }
+    .hash-row:last-child { border-bottom: none; }
+    .hash-algo { font-family: var(--mono); font-size: 9px; font-weight: 700; padding: 2px 9px; border-radius: 4px; background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(56,189,248,0.15); min-width: 62px; text-align: center; flex-shrink: 0; }
+    .hash-val  { font-family: var(--mono); font-size: 10.5px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0; background: var(--bg-elevated); border: 1px solid var(--border-mid); border-radius: 5px; padding: 4px 9px; font-family: var(--sans); font-size: 10px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .copy-btn svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+    .copy-btn:hover { background: var(--cyan-dim); border-color: rgba(56,189,248,0.3); color: var(--cyan); }
+    .copy-btn.copied { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.3); color: var(--green); }
+
+    .ent-big  { font-family: var(--mono); font-size: 30px; font-weight: 700; color: var(--text-bright); line-height: 1; margin-bottom: 0.4rem; }
+    .ent-bar  { height: 5px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; margin-bottom: 0.5rem; }
+    .ent-fill { height: 100%; border-radius: 3px; }
+    .ent-fill.normal   { background: var(--green); }
+    .ent-fill.moderate { background: var(--amber); }
+    .ent-fill.high, .ent-fill.very_high { background: var(--red); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
+    .ent-desc { font-family: var(--sans); font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+    .pe-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
+    .pe-stat { background: var(--bg-elevated); border-radius: 7px; padding: 0.55rem 0.8rem; }
+    .pe-stat label { font-family: var(--mono); font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 2px; }
+    .pe-stat span  { font-family: var(--mono); font-size: 11px; color: var(--text-bright); font-weight: 700; }
+    .imp-label { font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .imp-item  { font-family: var(--mono); font-size: 11px; padding: 0.3rem 0.65rem; background: rgba(248,113,113,0.04); border-left: 2px solid rgba(248,113,113,0.4); border-radius: 0 4px 4px 0; margin-bottom: 0.3rem; color: #fca5a5; }
+
+    .str-section { margin-bottom: 0.85rem; }
+    .str-section:last-child { margin-bottom: 0; }
+    .str-label { font-family: var(--sans); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.4rem; }
+    .str-item  { display: flex; align-items: flex-start; gap: 7px; padding: 0.35rem 0.65rem; background: var(--bg-elevated); border-radius: 5px; margin-bottom: 0.32rem; font-family: var(--mono); font-size: 10.5px; word-break: break-all; line-height: 1.45; }
+    .str-dot   { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .str-item.url .str-dot { background: var(--cyan); } .str-item.url { color: #93c5fd; }
+    .str-item.ip  .str-dot { background: var(--purple); } .str-item.ip  { color: #c084fc; }
+    .str-item.kw  .str-dot { background: var(--amber); } .str-item.kw  { color: var(--amber); font-family: var(--sans); font-size: 12px; }
+
+    .yara-summary-bar { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1rem; background: var(--bg-elevated); border-radius: 9px; padding: 0.9rem 1rem; }
+    .yara-count-big { font-family: var(--mono); font-size: 38px; font-weight: 700; line-height: 1; }
+    .yara-count-big.hit-count   { color: var(--red); text-shadow: 0 0 20px rgba(248,113,113,0.3); }
+    .yara-count-big.clean-count { color: var(--green); }
+    .yara-summary-label { font-family: var(--sans); font-size: 12px; color: var(--text-muted); margin-bottom: 0.3rem; }
+    .yara-summary-sev { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 13px; font-weight: 700; }
+    .yara-sev-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .sev-critical .yara-sev-dot{background:var(--red)} .sev-critical{color:var(--red)}
+    .sev-high     .yara-sev-dot{background:var(--orange)} .sev-high    {color:var(--orange)}
+    .sev-medium   .yara-sev-dot{background:var(--amber)} .sev-medium  {color:var(--amber)}
+    .sev-low      .yara-sev-dot{background:var(--green)} .sev-low     {color:var(--green)}
+    .yara-rules-title { font-family: var(--sans); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.6rem; }
+    .yara-rule-item { background: var(--bg-elevated); border: 1px solid var(--border-dim); border-left: 2px solid transparent; border-radius: 0 7px 7px 0; padding: 0.75rem 0.9rem; margin-bottom: 0.5rem; }
+    .yara-rule-item:last-child { margin-bottom: 0; }
+    .yara-rule-item.sev-critical{border-left-color:var(--red)} .yara-rule-item.sev-high{border-left-color:var(--orange)} .yara-rule-item.sev-medium{border-left-color:var(--amber)} .yara-rule-item.sev-low{border-left-color:var(--green)}
+    .yara-rule-top  { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 0.35rem; }
+    .yara-rule-name { font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--text-bright); }
+    .yara-rule-sev-badge { font-family: var(--sans); font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+    .yara-rule-sev-badge.critical{background:rgba(248,113,113,0.15);color:var(--red)} .yara-rule-sev-badge.high{background:rgba(251,146,60,0.15);color:var(--orange)} .yara-rule-sev-badge.medium{background:rgba(251,191,36,0.15);color:var(--amber)} .yara-rule-sev-badge.low{background:rgba(52,211,153,0.15);color:var(--green)}
+    .yara-rule-desc { font-family: var(--sans); font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.4rem; }
+    .yara-rule-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .yara-cat-badge { font-family: var(--sans); font-size: 10px; padding: 2px 8px; border-radius: 3px; background: rgba(167,139,250,0.12); color: var(--purple); }
+    .yara-tag       { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--bg-card); color: var(--text-ghost); }
+    .yara-clean,.yara-unavail { display: flex; align-items: flex-start; gap: 12px; }
+    .yara-clean-icon,.yara-unavail-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .yara-clean-icon   { background: var(--green-dim); } .yara-clean-icon svg   { stroke: var(--green); }
+    .yara-unavail-icon { background: rgba(167,139,250,0.08); } .yara-unavail-icon svg { stroke: var(--purple); }
+    .yara-clean-icon svg,.yara-unavail-icon svg { width: 18px; height: 18px; fill: none; stroke-width: 2; }
+    .yara-clean-title,.yara-unavail-title { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+    .yara-clean-text,.yara-unavail-text   { font-family: var(--sans); font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .yara-unavail-code { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: 10px; background: var(--bg-elevated); color: var(--purple); border-radius: 4px; padding: 3px 9px; }
+
+    .vt-unified { background: var(--bg-panel); border: 1px solid var(--border-dim); border-top: 2px solid rgba(248,113,113,0.5); border-radius: 12px; overflow: hidden; margin-bottom: 1rem; position: relative; z-index: 2; transition: transform 0.32s cubic-bezier(.22,.68,0,1.2), opacity 0.28s, box-shadow 0.32s, filter 0.28s; }
+    .vt-unified-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.15rem; border-bottom: 1px solid var(--border-dim); }
+    .vt-unified-body { display: grid; grid-template-columns: 300px 1fr; }
+    .vt-left  { padding: 1.1rem 1.15rem; border-right: 1px solid var(--border-dim); }
+    .vt-right { padding: 1.1rem 1.15rem; }
+    .vt-score-wrap { display: flex; align-items: baseline; gap: 3px; margin-bottom: 0.3rem; }
+    .vt-big   { font-family: var(--mono); font-size: 42px; font-weight: 700; color: var(--red); line-height: 1; }
+    .vt-slash { font-family: var(--mono); font-size: 20px; color: var(--text-ghost); }
+    .vt-total { font-family: var(--mono); font-size: 20px; color: var(--text-muted); }
+    .vt-caption { font-family: var(--sans); font-size: 12px; color: var(--text-muted); margin-bottom: 0.8rem; }
+    .vt-bar-bg   { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; margin-bottom: 0.45rem; }
+    .vt-bar-fill { height: 100%; border-radius: 3px; background: var(--red); box-shadow: 0 0 8px rgba(248,113,113,0.3); }
+    .vt-bar-fill.low { background: var(--amber); box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+    .vt-bar-labels { display: flex; justify-content: space-between; font-family: var(--sans); font-size: 11px; font-weight: 600; margin-bottom: 0.8rem; }
+    .vt-link { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 12px; color: var(--cyan); border: 1px solid rgba(56,189,248,0.2); border-radius: 6px; padding: 6px 13px; text-decoration: none; transition: all 0.15s; margin-top: 0.8rem; }
+    .vt-link:hover { background: var(--cyan-dim); border-color: var(--cyan); }
+    .vt-link svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .vt-stat-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
+    .vt-stat-pill { display: flex; flex-direction: column; align-items: center; background: var(--bg-elevated); border-radius: 8px; padding: 0.45rem 0.75rem; min-width: 58px; }
+    .vt-stat-pill .num { font-family: var(--mono); font-size: 17px; font-weight: 700; line-height: 1; }
+    .vt-stat-pill .lbl { font-family: var(--sans); font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .vt-stat-pill.mal .num { color: var(--red); } .vt-stat-pill.sus .num { color: var(--amber); } .vt-stat-pill.cln .num { color: var(--green); }
+    .vt-nokey,.vt-notfound { display: flex; align-items: flex-start; gap: 12px; }
+    .vt-nf-icon,.vt-nk-icon { width: 34px; height: 34px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .vt-nk-icon { background: rgba(251,191,36,0.08); } .vt-nk-icon svg { width: 17px; height: 17px; stroke: var(--amber); fill: none; stroke-width: 2; }
+    .vt-nf-icon { background: var(--cyan-dim); }     .vt-nf-icon svg { width: 17px; height: 17px; stroke: var(--cyan); fill: none; stroke-width: 2; }
+    .vt-nk-title,.vt-nf-title { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+    .vt-nk-text,.vt-nf-text   { font-family: var(--sans); font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .vt-nk-code { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: 10px; background: var(--bg-elevated); color: var(--cyan); border-radius: 4px; padding: 3px 9px; }
+    .engines-title { font-family: var(--sans); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.55rem; }
+    .engines-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    .engine-item   { display: flex; align-items: center; gap: 6px; background: var(--bg-elevated); border-radius: 5px; padding: 0.38rem 0.6rem; }
+    .engine-dot    { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .engine-dot.malicious  { background: var(--red); } .engine-dot.suspicious { background: var(--amber); }
+    .engine-dot.undetected,.engine-dot.harmless { background: var(--green); }
+    .engine-name   { font-family: var(--sans); font-size: 11px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .engine-result { font-family: var(--sans); font-size: 10px; font-weight: 600; flex-shrink: 0; }
+    .engine-result.malicious  { color: var(--red); } .engine-result.suspicious { color: var(--amber); }
+    .engine-result.undetected,.engine-result.harmless { color: var(--green); }
+    .engines-na { font-family: var(--sans); font-size: 12px; color: var(--text-ghost); padding: 0.5rem 0; }
+    .engines-scroll { max-height: 260px; overflow-y: auto; }
+    .engines-scroll::-webkit-scrollbar { width: 3px; }
+    .engines-scroll::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.2); border-radius: 2px; }
+
+    .attack-card { background: var(--bg-panel); border: 1px solid var(--border-dim); border-top: 2px solid rgba(251,146,60,0.7); border-radius: 12px; overflow: hidden; margin-bottom: 1rem; position: relative; z-index: 2; transition: transform 0.32s cubic-bezier(.22,.68,0,1.2), opacity 0.28s, box-shadow 0.32s, filter 0.28s; cursor: pointer; }
+    .attack-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.15rem; border-bottom: 1px solid var(--border-dim); }
+    .attack-hdr-left { display: flex; align-items: center; gap: 10px; }
+    .attack-hdr-title { font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--text-bright); text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+    .attack-hdr-title svg { width: 14px; height: 14px; stroke: var(--orange); fill: none; stroke-width: 2; flex-shrink: 0; }
+    .attack-hdr-badges { display: flex; align-items: center; gap: 6px; }
+    .attack-summary { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--border-dim); }
+    .attack-stat { flex: 1; padding: 0.9rem 1rem; text-align: center; border-right: 1px solid var(--border-dim); }
+    .attack-stat:last-child { border-right: none; }
+    .attack-stat-num { font-family: var(--mono); font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+    .attack-stat-lbl { font-family: var(--sans); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .attack-stat-num.c-total  { color: var(--orange); }
+    .attack-stat-num.c-tactic { color: var(--cyan); }
+    .attack-stat-num.c-high   { color: var(--red); }
+    .attack-stat-num.c-med    { color: var(--amber); }
+    .attack-stat-num.c-low    { color: var(--green); }
+    .attack-body { padding: 1rem 1.15rem; }
+    .attack-tactic-group { margin-bottom: 1rem; }
+    .attack-tactic-group:last-child { margin-bottom: 0; }
+    .attack-tactic-label { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .attack-tactic-label::before { content: ''; flex: none; width: 3px; height: 12px; border-radius: 2px; background: var(--orange); }
+    .attack-techniques { display: flex; flex-wrap: wrap; gap: 6px; }
+    .atk-chip { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-elevated); border: 1px solid var(--border-dim); border-radius: 7px; padding: 6px 10px; cursor: pointer; text-decoration: none; transition: border-color 0.15s, background 0.15s; position: relative; }
+    .atk-chip:hover { border-color: var(--orange); background: rgba(251,146,60,0.06); }
+    .atk-chip-conf { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .atk-chip-conf.high   { background: var(--red); }
+    .atk-chip-conf.medium { background: var(--amber); }
+    .atk-chip-conf.low    { background: var(--green); }
+    .atk-chip-id { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--orange); letter-spacing: 0.04em; flex-shrink: 0; }
+    .atk-chip-name { font-family: var(--sans); font-size: 11px; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+    .atk-chip-tooltip { display: none; position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%); background: #1a2235; border: 1px solid rgba(251,146,60,0.3); border-radius: 8px; padding: 8px 11px; min-width: 220px; max-width: 300px; z-index: 50; pointer-events: none; }
+    .atk-chip:hover .atk-chip-tooltip { display: block; }
+    .atk-tooltip-id   { font-family: var(--mono); font-size: 10px; color: var(--orange); font-weight: 700; margin-bottom: 3px; }
+    .atk-tooltip-name { font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 5px; }
+    .atk-tooltip-ev   { font-family: var(--sans); font-size: 11px; color: var(--text-muted); line-height: 1.45; word-break: break-word; }
+    .atk-tooltip-conf { margin-top: 6px; display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+    .atk-tooltip-conf.high   { color: var(--red); }
+    .atk-tooltip-conf.medium { color: var(--amber); }
+    .atk-tooltip-conf.low    { color: var(--green); }
+    .attack-empty { display: flex; align-items: flex-start; gap: 12px; }
+    .attack-empty-icon { width: 36px; height: 36px; border-radius: 8px; background: rgba(52,211,153,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .attack-empty-icon svg { width: 18px; height: 18px; stroke: var(--green); fill: none; stroke-width: 2; }
+    .attack-empty-title { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+    .attack-empty-text  { font-family: var(--sans); font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .attack-legend { display: flex; align-items: center; gap: 14px; padding: 0.6rem 1.15rem; border-top: 1px solid var(--border-dim); background: rgba(0,0,0,0.15); }
+    .attack-legend-label { font-family: var(--sans); font-size: 10px; color: var(--text-ghost); text-transform: uppercase; letter-spacing: 0.08em; }
+    .attack-legend-items { display: flex; align-items: center; gap: 12px; }
+    .attack-legend-item  { display: flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 10px; color: var(--text-muted); }
+    .attack-legend-dot   { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    .threat-summary { border-radius: 13px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; position: relative; overflow: hidden; border: 1px solid transparent; z-index: 2; transition: transform 0.32s cubic-bezier(.22,.68,0,1.2), opacity 0.28s, box-shadow 0.32s, filter 0.28s; }
+    .threat-summary.malicious  { background: #1a0a0a; border-color: #5c1a1a; }
+    .threat-summary.suspicious { background: #1a1500; border-color: #5c4800; }
+    .threat-summary.benign     { background: #0a1a10; border-color: #1a5c30; }
+    .threat-summary::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .threat-summary.malicious::before  { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+    .threat-summary.suspicious::before { background: linear-gradient(90deg, transparent, var(--amber), transparent); }
+    .threat-summary.benign::before     { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+    .ts-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+    .ts-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .threat-summary.malicious  .ts-icon { background: #3d1010; }
+    .threat-summary.suspicious .ts-icon { background: #3d2e00; }
+    .threat-summary.benign     .ts-icon { background: #0d3020; }
+    .ts-icon svg { width: 17px; height: 17px; fill: none; stroke-width: 2; }
+    .threat-summary.malicious  .ts-icon svg { stroke: var(--red); }
+    .threat-summary.suspicious .ts-icon svg { stroke: var(--amber); }
+    .threat-summary.benign     .ts-icon svg { stroke: var(--green); }
+    .ts-title { font-family: var(--sans); font-size: 14px; font-weight: 700; color: var(--text-bright); }
+    .ts-body { display: grid; grid-template-columns: 1fr auto; gap: 1.25rem; align-items: start; }
+    .ts-reasons { list-style: none; }
+    .ts-reason { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid #2e1010; font-family: var(--sans); font-size: 13px; color: var(--text-body); line-height: 1.5; }
+    .ts-reason:last-child { border-bottom: none; }
+    .ts-reason-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .ts-reason-dot.critical { background: var(--red); box-shadow: 0 0 6px rgba(248,113,113,0.5); }
+    .ts-reason-dot.high     { background: var(--orange); }
+    .ts-reason-dot.medium   { background: var(--amber); }
+    .ts-reason-dot.low      { background: var(--green); }
+    .ts-confidence { text-align: center; flex-shrink: 0; background: #120808; border-radius: 10px; padding: 14px 20px; border: 1px solid #5c1a1a; min-width: 110px; }
+    .ts-conf-label { font-family: var(--sans); font-size: 9px; color: var(--text-ghost); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+    .ts-conf-value { font-family: var(--mono); font-size: 17px; font-weight: 700; letter-spacing: 0.04em; }
+    .threat-summary.malicious  .ts-conf-value { color: var(--red); }
+    .threat-summary.suspicious .ts-conf-value { color: var(--amber); }
+    .threat-summary.benign     .ts-conf-value { color: var(--green); }
+    .ts-conf-score { font-family: var(--mono); font-size: 10px; color: var(--text-ghost); margin-top: 4px; }
+    .ts-conf-bar { height: 3px; background: #2a0f0f; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+    .ts-conf-fill { height: 100%; border-radius: 2px; }
+    .threat-summary.malicious  .ts-conf-fill { background: var(--red); }
+    .threat-summary.suspicious .ts-conf-fill { background: var(--amber); }
+    .threat-summary.benign     .ts-conf-fill { background: var(--green); }
+
+    .coming-soon { background: var(--bg-panel); border: 1px dashed rgba(56,189,248,0.15); border-radius: 11px; padding: 1rem 1.4rem; display: flex; align-items: center; gap: 14px; opacity: 0.7; margin-bottom: 0; position: relative; z-index: 2; transition: transform 0.32s cubic-bezier(.22,.68,0,1.2), opacity 0.28s, box-shadow 0.32s, filter 0.28s; }
+    .cs-icon { width: 36px; height: 36px; background: rgba(56,189,248,0.08); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cs-icon svg { width: 18px; height: 18px; stroke: var(--cyan); fill: none; stroke-width: 2; }
+    .cs-badge { font-family: var(--sans); font-size: 9px; font-weight: 700; background: rgba(56,189,248,0.1); color: var(--cyan); border-radius: 3px; padding: 2px 8px; letter-spacing: 0.08em; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
+    .cs-title { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 2px; }
+    .cs-desc  { font-family: var(--sans); font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .cs-bar { height: 2px; background: var(--border-dim); border-radius: 2px; margin-top: 0.6rem; overflow: hidden; }
+    .cs-fill { height: 100%; width: 12%; background: var(--cyan); border-radius: 2px; }
+
+    .scroll-section { position: relative; }
+    .scroll-section .scroll-inner { max-height: 180px; overflow-y: auto; overflow-x: hidden; }
+    .scroll-section .scroll-inner::-webkit-scrollbar { width: 3px; }
+    .scroll-section .scroll-inner::-webkit-scrollbar-track { background: transparent; }
+    .scroll-section .scroll-inner::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.25); border-radius: 2px; }
+    .scroll-section .scroll-fade { position: absolute; bottom: 0; left: 0; right: 3px; height: 32px; background: linear-gradient(transparent, var(--bg-panel)); pointer-events: none; border-radius: 0 0 4px 4px; }
+    .scroll-section .scroll-inner.at-bottom + .scroll-fade { display: none; }
+
+    .str-card-body { padding: 0.85rem 1.15rem; }
+    .imp-scroll { max-height: 186px; overflow-y: auto; padding-bottom: 2px; }
+    .imp-scroll::-webkit-scrollbar { width: 3px; }
+    .imp-scroll::-webkit-scrollbar-thumb { background: rgba(248,113,113,0.25); border-radius: 2px; }
+    .ind-scroll { overflow-y: auto; padding: 0.4rem 0; flex: 1; min-height: 0; }
+    .ind-scroll::-webkit-scrollbar { width: 3px; }
+    .ind-scroll::-webkit-scrollbar-track { background: transparent; }
+    .ind-scroll::-webkit-scrollbar-thumb { background: rgba(248,113,113,0.3); border-radius: 2px; }
+    .ind-scroll::-webkit-scrollbar-thumb:hover { background: rgba(248,113,113,0.55); }
+
+    .expandable .card-body { max-height: 320px; overflow-y: auto; }
+    .expandable .card-body::-webkit-scrollbar { width: 3px; }
+    .expandable .card-body::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.2); border-radius: 2px; }
+
+    .row-3 { align-items: stretch; }
+    .row-3 > .card { height: 420px; display: flex; flex-direction: column; }
+    .row-3 > .card > .card-hdr { flex-shrink: 0; }
+    .row-3 > .card > .card-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+    .row-3 > .card > .card-body::-webkit-scrollbar { width: 4px; }
+    .row-3 > .card > .card-body::-webkit-scrollbar-track { background: transparent; }
+    .row-3 > .card > .card-body::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.22); border-radius: 3px; }
+    .row-3 > .card > .card-body::-webkit-scrollbar-thumb:hover { background: rgba(56,189,248,0.45); }
+    .row-3 > .card.card-green { height: 420px; display: flex; flex-direction: column; }
+    .row-3 > .card.card-green > .card-hdr { flex-shrink: 0; }
+    .row-3 > .card.card-green > .str-card-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0.85rem 1.15rem; }
+    .row-3 > .card.card-green > .str-card-body::-webkit-scrollbar { width: 4px; }
+    .row-3 > .card.card-green > .str-card-body::-webkit-scrollbar-track { background: transparent; }
+    .row-3 > .card.card-green > .str-card-body::-webkit-scrollbar-thumb { background: rgba(52,211,153,0.28); border-radius: 3px; }
+    .row-3 > .card.card-green > .str-card-body::-webkit-scrollbar-thumb:hover { background: rgba(52,211,153,0.55); }
+    .row-3 > .card.card-green .scroll-section .scroll-inner { max-height: none !important; overflow: visible !important; }
+    .row-3 > .card.card-green .scroll-section .scroll-fade { display: none !important; }
+
+    /* SECTIONS MODAL */
+    .sec-overlay { position:fixed; inset:0; z-index:9500; background:rgba(4,8,15,0.88); backdrop-filter:blur(12px); display:none; align-items:center; justify-content:center; padding:20px; }
+    .sec-overlay.open { display:flex; animation:secFadeIn 0.2s ease; }
+    @keyframes secFadeIn { from{opacity:0}to{opacity:1} }
+    .sec-modal { background:var(--bg-panel); border:1px solid rgba(56,189,248,0.22); border-top:2px solid rgba(56,189,248,0.55); border-radius:16px; width:min(700px,93vw); max-height:86vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 0 0 1px rgba(56,189,248,0.08), 0 32px 80px rgba(0,0,0,0.85), 0 0 50px rgba(56,189,248,0.05); animation:secSlideIn 0.28s cubic-bezier(.22,.68,0,1.2); }
+    @keyframes secSlideIn { from{opacity:0;transform:scale(0.93) translateY(20px)}to{opacity:1;transform:none} }
+    .sec-modal-hdr { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.25rem; border-bottom:1px solid var(--border-dim); flex-shrink:0; }
+    .sec-modal-title { display:flex; align-items:center; gap:9px; font-family:var(--sans); font-size:12px; font-weight:700; color:var(--text-bright); text-transform:uppercase; letter-spacing:0.08em; }
+    .sec-modal-title svg { width:14px; height:14px; stroke:var(--cyan); fill:none; stroke-width:2; }
+    .sec-modal-close { background:var(--bg-elevated); border:1px solid var(--border-mid); border-radius:6px; width:26px; height:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:13px; line-height:1; transition:all 0.15s; }
+    .sec-modal-close:hover { border-color:rgba(248,113,113,0.4); color:var(--red); background:rgba(248,113,113,0.08); }
+    .sec-stats-row { display:flex; align-items:stretch; border-bottom:1px solid var(--border-dim); flex-shrink:0; }
+    .sec-stat { flex:1; text-align:center; padding:0.65rem 0.5rem; border-right:1px solid var(--border-dim); }
+    .sec-stat:last-child { border-right:none; }
+    .sec-stat-num { font-family:var(--mono); font-size:19px; font-weight:700; line-height:1; margin-bottom:3px; }
+    .sec-stat-lbl { font-family:var(--sans); font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.07em; }
+    .sec-modal-body { padding:1rem 1.25rem 1.2rem; overflow-y:auto; flex:1; min-height:0; }
+    .sec-modal-body::-webkit-scrollbar { width:3px; }
+    .sec-modal-body::-webkit-scrollbar-thumb { background:rgba(56,189,248,0.25); border-radius:2px; }
+    .sec-table { width:100%; border-collapse:collapse; }
+    .sec-table th { padding:0.5rem 0.8rem; font-family:var(--mono); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); text-align:left; border-bottom:1px solid var(--border-dim); background:var(--bg-elevated); white-space:nowrap; }
+    .sec-table th:nth-child(2),.sec-table th:nth-child(3) { text-align:right; }
+    .sec-table th:nth-child(4) { text-align:right; min-width:190px; }
+    .sec-table td { padding:0.65rem 0.8rem; font-family:var(--mono); font-size:11px; color:var(--text-body); border-bottom:1px solid var(--border-dim); vertical-align:middle; }
+    .sec-table tr:last-child td { border-bottom:none; }
+    .sec-table tr:hover td { background:rgba(56,189,248,0.028); }
+    .sec-td-name { font-weight:700; color:var(--text-bright); font-size:12px; }
+    .sec-td-size { text-align:right; color:var(--text-muted); }
+    .sec-ent-td { text-align:right; }
+    .sec-ent-inner { display:inline-flex; align-items:center; gap:7px; justify-content:flex-end; width:100%; }
+    .sec-ent-bar-track { width:60px; height:4px; background:rgba(255,255,255,0.07); border-radius:2px; overflow:hidden; flex-shrink:0; }
+    .sec-ent-bar-fill { height:100%; border-radius:2px; }
+    .sec-ent-num { font-weight:700; font-size:11px; min-width:44px; text-align:right; }
+    .sec-ent-badge { font-family:var(--sans); font-size:7.5px; font-weight:700; padding:2px 5px; border-radius:3px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0; }
+    .sec-ent-badge.sus { background:rgba(248,113,113,0.16); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
+    .sec-ent-badge.elev { background:rgba(251,191,36,0.14); color:var(--amber); border:1px solid rgba(251,191,36,0.2); }
+    .sec-ent-badge.norm { background:rgba(52,211,153,0.12); color:var(--green); border:1px solid rgba(52,211,153,0.18); }
+    .sec-modal-footer { padding:0.55rem 1.25rem; border-top:1px solid var(--border-dim); background:rgba(0,0,0,0.12); display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
+    .sec-leg { display:flex; align-items:center; gap:5px; font-family:var(--sans); font-size:10px; color:var(--text-muted); }
+    .sec-leg-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .sec-launch-btn { display: inline-flex; align-items: center; gap: 9px; background: linear-gradient(135deg, rgba(56,189,248,0.14) 0%, rgba(99,102,241,0.12) 100%); border: 1px solid rgba(56,189,248,0.45); border-radius: 10px; padding: 9px 14px; cursor: pointer; text-decoration: none; transition: all 0.22s cubic-bezier(.22,.68,0,1.2); position: relative; overflow: hidden; box-shadow: 0 0 18px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06); width: 100%; margin-top: 2px; }
+    .sec-launch-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(56,189,248,0.08) 50%, transparent 100%); background-size: 200% 100%; animation: sec-shimmer 2.8s ease-in-out infinite; }
+    @keyframes sec-shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+    .sec-launch-btn:hover { border-color: var(--cyan); background: linear-gradient(135deg, rgba(56,189,248,0.22) 0%, rgba(99,102,241,0.18) 100%); box-shadow: 0 0 28px rgba(56,189,248,0.28), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1); transform: translateY(-1px) scale(1.01); }
+    .sec-launch-btn:active { transform: translateY(0) scale(0.99); }
+    .sec-launch-icon { width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
+    .sec-launch-icon svg { width: 15px; height: 15px; stroke: var(--cyan); fill: none; stroke-width: 2; }
+    .sec-launch-info { flex: 1; min-width: 0; position: relative; z-index: 1; }
+    .sec-launch-label { font-family: var(--sans); font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.09em; display: block; margin-bottom: 2px; }
+    .sec-launch-count { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--cyan); line-height: 1; display: flex; align-items: baseline; gap: 5px; }
+    .sec-launch-count-sub { font-family: var(--sans); font-size: 10px; color: var(--text-muted); font-weight: 500; }
+    .sec-launch-arrow { position: relative; z-index: 1; flex-shrink: 0; width: 26px; height: 26px; border-radius: 6px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2); display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: var(--cyan); font-size: 13px; }
+    .sec-launch-btn:hover .sec-launch-arrow { background: rgba(56,189,248,0.22); border-color: rgba(56,189,248,0.5); transform: translate(2px, -2px); }
+    .sec-launch-pulse { position: absolute; top: 8px; right: 8px; z-index: 1; width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); animation: sec-pulse 2s ease-in-out infinite; }
+    @keyframes sec-pulse { 0%,100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px var(--cyan); } 50% { opacity: 0.5; transform: scale(0.7); box-shadow: 0 0 3px var(--cyan); } }
+
+    /* GRAPH OVERVIEW */
+    .graph-overview { position: relative; z-index: 2; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 10px; }
+    .graph-top-row { width: 100%; }
+    .graph-bottom-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; width: 100%; }
+    .graph-main-card { background: var(--bg-panel); border: 1px solid var(--border-dim); border-top: 2px solid rgba(56,189,248,0.5); border-radius: 12px; overflow: hidden; cursor: pointer; width: 100%; transition: transform 0.32s cubic-bezier(.22,.68,0,1.2), opacity 0.28s, box-shadow 0.32s, filter 0.28s; }
+    .graph-main-card:hover { transform: scale(1.012) translateY(-2px); box-shadow: 0 0 0 1px rgba(56,189,248,0.35), 0 18px 52px rgba(0,0,0,0.6), 0 0 28px rgba(56,189,248,0.08); }
+    .graph-main-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 1.1rem; border-bottom: 1px solid var(--border-dim); }
+    .graph-main-title { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--text-bright); text-transform: uppercase; letter-spacing: 0.08em; }
+    .graph-main-title svg { width: 14px; height: 14px; stroke: var(--cyan); fill: none; stroke-width: 2; }
+    .graph-main-body { padding: 0.75rem 1rem 0.85rem; display: flex; align-items: center; justify-content: center; }
+    .graph-main-hint { font-family: var(--mono); font-size: 9px; color: var(--text-ghost); letter-spacing: 0.06em; text-transform: uppercase; display: flex; align-items: center; gap: 5px; }
+    .graph-main-hint::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); opacity: 0.6; animation: pulse-dot 1.6s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+    .mini-chart-card { background: var(--bg-panel); border: 1px solid var(--border-dim); border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: transform 0.28s cubic-bezier(.22,.68,0,1.2), box-shadow 0.28s, border-color 0.2s, opacity 0.28s, filter 0.28s; position: relative; }
+    .mini-chart-card:hover { transform: scale(1.04) translateY(-2px); box-shadow: 0 0 0 1px var(--mini-accent, rgba(56,189,248,0.4)), 0 14px 36px rgba(0,0,0,0.55); border-color: var(--mini-accent-dim, rgba(56,189,248,0.2)); z-index: 5; }
+    .mini-chart-card .mc-hdr { display: flex; align-items: center; gap: 7px; padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border-dim); flex-shrink: 0; }
+    .mini-chart-card .mc-icon { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .mini-chart-card .mc-icon svg { width: 12px; height: 12px; fill: none; stroke-width: 2; }
+    .mini-chart-card .mc-label { font-family: var(--sans); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-bright); flex: 1; line-height: 1.2; }
+    .mini-chart-card .mc-sub { font-family: var(--mono); font-size: 7.5px; color: var(--text-ghost); letter-spacing: 0.04em; margin-top: 1px; }
+    .mini-chart-card .mc-body { padding: 0.6rem 0.8rem 0.5rem; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .mini-chart-card .mc-expand-hint { font-family: var(--mono); font-size: 7.5px; color: var(--text-ghost); text-align: center; padding: 0 0 5px; opacity: 0; transition: opacity 0.2s; flex-shrink: 0; }
+    .mini-chart-card:hover .mc-expand-hint { opacity: 1; }
+    .mc-severity { --mini-accent: rgba(248,113,113,0.45); --mini-accent-dim: rgba(248,113,113,0.15); border-top: 2px solid rgba(248,113,113,0.5); }
+    .mc-severity .mc-icon { background: rgba(248,113,113,0.1); }
+    .mc-severity .mc-icon svg { stroke: var(--red); }
+    .mc-strings  { --mini-accent: rgba(52,211,153,0.45);  --mini-accent-dim: rgba(52,211,153,0.15);  border-top: 2px solid rgba(52,211,153,0.5); }
+    .mc-strings  .mc-icon { background: rgba(52,211,153,0.08); }
+    .mc-strings  .mc-icon svg { stroke: var(--green); }
+    .mc-entropy  { --mini-accent: rgba(251,191,36,0.45);  --mini-accent-dim: rgba(251,191,36,0.15);  border-top: 2px solid rgba(251,191,36,0.5); }
+    .mc-entropy  .mc-icon { background: rgba(251,191,36,0.08); }
+    .mc-entropy  .mc-icon svg { stroke: var(--amber); }
+    .mc-mitre    { --mini-accent: rgba(251,146,60,0.45);  --mini-accent-dim: rgba(251,146,60,0.15);  border-top: 2px solid rgba(251,146,60,0.5); }
+    .mc-mitre    .mc-icon { background: rgba(251,146,60,0.08); }
+    .mc-mitre    .mc-icon svg { stroke: var(--orange); }
+    .mini-bar-row { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+    .mini-bar-row:last-child { margin-bottom: 0; }
+    .mini-bar-label { font-family: var(--mono); font-size: 8px; color: var(--text-muted); min-width: 46px; }
+    .mini-bar-track { flex:1; height:5px; border-radius:3px; background: rgba(255,255,255,0.06); overflow:hidden; }
+    .mini-bar-fill  { height:100%; border-radius:3px; transition: width 0.9s cubic-bezier(.22,.68,0,1.2); }
+    .mini-bar-val   { font-family: var(--mono); font-size: 8px; color: var(--text-ghost); min-width: 26px; text-align:right; }
+    .chart-popup-overlay { display: none; position: fixed; inset: 0; background: rgba(4,8,15,0.9); backdrop-filter: blur(10px); z-index: 9000; align-items: center; justify-content: center; padding: 20px; }
+    .chart-popup-overlay.active { display: flex; }
+    .chart-popup { background: var(--bg-panel); border: 1px solid rgba(56,189,248,0.25); border-top: 2px solid rgba(56,189,248,0.5); border-radius: 16px; width: min(820px, 94vw); height: min(540px, 88vh); display: flex; flex-direction: column; overflow: hidden; position: relative; animation: popup-in 0.3s cubic-bezier(.22,.68,0,1.2); box-shadow: 0 0 0 1px rgba(56,189,248,0.15), 0 32px 80px rgba(0,0,0,0.85); }
+    @keyframes popup-in { from { opacity:0; transform: scale(0.9) translateY(20px); } to { opacity:1; transform: scale(1) translateY(0); } }
+    .chart-popup-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.2rem; border-bottom: 1px solid var(--border-dim); flex-shrink: 0; }
+    .chart-popup-title { font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
+    .chart-popup-title svg { width:13px; height:13px; fill:none; stroke-width:2; }
+    .chart-popup-close { background: var(--bg-elevated); border: 1px solid var(--border-mid); border-radius: 6px; width:26px; height:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; color: var(--text-muted); transition: all 0.15s; font-size:13px; line-height:1; }
+    .chart-popup-close:hover { border-color: var(--red); color:var(--red); background: rgba(248,113,113,0.08); }
+    .chart-popup-body { padding: 1rem 1.2rem 1.1rem; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .popup-legend { display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 8px; font-size:11px; color:var(--text-muted); flex-shrink: 0; }
+    .popup-legend span { display:flex; align-items:center; gap:5px; }
+    .popup-legend-swatch { width:9px; height:9px; border-radius:2px; display:inline-block; }
+    .popup-canvas-wrap { position:relative; width:100%; flex: 1; min-height: 0; }
+    .popup-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+    #popup-extra { flex-shrink: 0; margin-top: 8px; }
+
+    .graph-section-label { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-ghost); margin-bottom: 0.75rem; position: relative; z-index: 2; }
+    .graph-section-label::before, .graph-section-label::after { content: ''; flex:1; height:1px; background: var(--border-dim); }
+
+    /* FOOTER */
+    .sf-top-line { height: 1px; background: linear-gradient(90deg, transparent, rgba(56,189,248,0.35), rgba(167,139,250,0.25), transparent); margin-bottom: 1.6rem; }
+    .sf-inner { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    .sf-brand-row { display: flex; align-items: center; gap: 10px; font-family: var(--sans); font-size: 12px; color: var(--text-muted); }
+    .sf-brand-icon { width: 16px; height: 16px; stroke: rgba(56,189,248,0.4); fill: none; stroke-width: 1.5; flex-shrink: 0; }
+    .sf-brand-name { color: var(--text-body); font-weight: 600; font-size: 13px; }
+    .sf-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-ghost); flex-shrink: 0; }
+    .sf-brand-sep { color: var(--text-ghost); }
+    .sf-action-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .sf-socials { display: flex; gap: 6px; align-items: center; }
+    .sf-social-btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 7px 13px; font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--text-muted); text-decoration: none; transition: all 0.18s ease; white-space: nowrap; }
+    .sf-social-btn:hover { color: var(--cyan); border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.06); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(56,189,248,0.08); }
+    .sf-v-sep { width: 1px; height: 28px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent); flex-shrink: 0; margin: 0 4px; }
+    .sf-support-btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; background: rgba(124,58,237,0.08); border: 1px solid rgba(167,139,250,0.28); border-radius: 50px; padding: 9px 22px; font-family: var(--sans); font-size: 13px; font-weight: 600; color: #c4b5fd; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 0 18px rgba(124,58,237,0.10); }
+    .sf-support-glow { position: absolute; inset: 0; background: linear-gradient(110deg, transparent 20%, rgba(167,139,250,0.18) 40%, rgba(196,181,253,0.12) 50%, transparent 70%); background-size: 250% 100%; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .sf-support-btn:hover .sf-support-glow { opacity: 1; animation: shimmer 1.4s ease infinite; }
+    @keyframes shimmer { 0%{ background-position: 200% center; } 100%{ background-position: -200% center; } }
+    .sf-support-btn:hover { background: rgba(124,58,237,0.18); border-color: rgba(167,139,250,0.55); box-shadow: 0 0 28px rgba(124,58,237,0.22), 0 0 8px rgba(167,139,250,0.15); transform: translateY(-1px); color: #e9d5ff; }
+    .sf-support-eth-icon { display: flex; align-items: center; flex-shrink: 0; }
+    .sf-support-text { position: relative; z-index: 1; }
+    .sf-support-arrow { display: flex; align-items: center; opacity: 0.7; position: relative; z-index: 1; transition: transform 0.2s; }
+    .sf-support-btn:hover .sf-support-arrow { transform: translateX(2px); opacity: 1; }
+
+    /* DONATION MODAL */
+    .donate-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(4,8,15,0.82); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .donate-overlay.open { display: flex; animation: overlayIn 0.22s ease; }
+    @keyframes overlayIn { from{opacity:0}to{opacity:1} }
+    .donate-modal { background: #0c1122; border: 1px solid rgba(167,139,250,0.25); border-radius: 16px; padding: 2rem; max-width: 580px; width: 100%; position: relative; box-shadow: 0 0 60px rgba(124,58,237,0.18), 0 24px 64px rgba(0,0,0,0.6); animation: modalIn 0.28s cubic-bezier(.22,.68,0,1.2); }
+    @keyframes modalIn { from{opacity:0;transform:scale(0.94) translateY(12px)} to{opacity:1;transform:none} }
+    .donate-modal::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; border-radius:16px 16px 0 0; background: linear-gradient(90deg, transparent, rgba(167,139,250,0.7), rgba(56,189,248,0.4), transparent); }
+    .donate-close { position:absolute; top:1rem; right:1rem; background:var(--bg-elevated); border:1px solid var(--border-dim); border-radius:7px; padding:5px; cursor:pointer; color:var(--text-muted); display:flex; align-items:center; transition:all 0.15s; }
+    .donate-close svg { width:14px; height:14px; }
+    .donate-close:hover { color:var(--red); border-color:rgba(248,113,113,0.3); background:rgba(248,113,113,0.06); }
+    .dm-header { display:flex; align-items:center; gap:14px; margin-bottom:1rem; }
+    .dm-eth-icon { width:52px; height:52px; border-radius:12px; background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(167,139,250,0.1)); border:1px solid rgba(167,139,250,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 0 20px rgba(124,58,237,0.15); }
+    .dm-title { font-family:var(--sans); font-size:20px; font-weight:800; color:var(--text-bright); margin-bottom:3px; }
+    .dm-sub { font-family:var(--sans); font-size:12px; color:var(--text-muted); }
+    .dm-msg { font-family:var(--sans); font-size:13px; color:var(--text-muted); line-height:1.65; margin-bottom:.9rem; }
+    .dm-network { display:inline-flex; align-items:center; gap:7px; background:rgba(52,211,153,0.06); border:1px solid rgba(52,211,153,0.2); border-radius:6px; padding:5px 12px; margin-bottom:1.2rem; }
+    .dm-net-dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); animation:blink 2s ease-in-out infinite; flex-shrink:0; }
+    .dm-net-label { font-family:var(--mono); font-size:10px; color:var(--green); letter-spacing:.06em; }
+    .dm-content { display:grid; grid-template-columns:160px 1fr; gap:1.4rem; align-items:start; }
+    .dm-qr-col { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .dm-qr-wrap { width:148px; height:148px; background:#fff; border-radius:10px; padding:6px; position:relative; overflow:hidden; box-shadow:0 0 24px rgba(167,139,250,0.2); border:2px solid rgba(167,139,250,0.35); }
+    .dm-qr-img { width:100%; height:100%; object-fit:contain; display:block; border-radius:6px; }
+    .dm-qr-shine { position:absolute; inset:0; background:linear-gradient(135deg,rgba(255,255,255,0.12) 0%,transparent 50%); pointer-events:none; border-radius:8px; }
+    .dm-qr-placeholder { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#a78bfa; font-family:var(--sans); font-size:11px; }
+    .dm-qr-label { font-family:var(--sans); font-size:11px; color:var(--text-ghost); text-align:center; }
+    .dm-addr-col { display:flex; flex-direction:column; gap:.7rem; }
+    .dm-ens-row { display:flex; align-items:center; gap:8px; }
+    .dm-ens-badge { font-family:var(--mono); font-size:9px; font-weight:700; padding:2px 7px; border-radius:4px; background:rgba(167,139,250,0.14); color:#a78bfa; border:1px solid rgba(167,139,250,0.25); letter-spacing:.06em; }
+    .dm-ens-name { font-family:var(--mono); font-size:15px; font-weight:700; color:#c4b5fd; }
+    .dm-addr-label { font-family:var(--sans); font-size:10px; font-weight:600; color:var(--text-ghost); text-transform:uppercase; letter-spacing:.08em; }
+    .dm-addr-box { display:flex; align-items:center; gap:8px; background:var(--bg-elevated); border:1px solid rgba(167,139,250,0.2); border-radius:8px; padding:8px 10px; transition:border-color .2s; }
+    .dm-addr-box:hover { border-color:rgba(167,139,250,0.45); }
+    .dm-addr-text { font-family:var(--mono); font-size:10px; color:var(--text-body); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dm-copy-btn { display:inline-flex; align-items:center; gap:5px; background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.25); border-radius:5px; padding:4px 10px; font-family:var(--sans); font-size:11px; font-weight:600; color:#a78bfa; cursor:pointer; flex-shrink:0; transition:all .15s; white-space:nowrap; }
+    .dm-copy-btn svg { width:11px; height:11px; }
+    .dm-copy-btn:hover { background:rgba(167,139,250,0.22); border-color:rgba(167,139,250,0.5); }
+    .dm-copy-btn.copied { background:rgba(52,211,153,0.12); border-color:rgba(52,211,153,0.35); color:var(--green); }
+    .dm-ens-copy-btn { display:inline-flex; align-items:center; gap:4px; background:rgba(167,139,250,0.08); border:1px solid rgba(167,139,250,0.2); border-radius:5px; padding:3px 9px; font-family:var(--sans); font-size:10px; font-weight:600; color:#a78bfa; cursor:pointer; transition:all 0.15s; white-space:nowrap; margin-left:2px; }
+    .dm-ens-copy-btn svg { width:11px; height:11px; flex-shrink:0; }
+    .dm-ens-copy-btn:hover { background:rgba(167,139,250,0.18); border-color:rgba(167,139,250,0.45); color:#c4b5fd; }
+    .dm-ens-copy-btn.copied { background:rgba(52,211,153,0.12); border-color:rgba(52,211,153,0.35); color:var(--green); }
+    .dm-note { display:flex; align-items:flex-start; gap:6px; font-family:var(--sans); font-size:11px; color:var(--text-ghost); line-height:1.5; background:rgba(251,191,36,0.04); border:1px solid rgba(251,191,36,0.1); border-radius:6px; padding:7px 10px; }
+    .dm-note svg { flex-shrink:0; margin-top:1px; stroke:var(--amber); }
+    .dm-thanks { font-family:var(--sans); font-size:12px; color:var(--text-muted); line-height:1.5; text-align:center; padding-top:4px; }
+
+    .site-footer { margin-top: 2.5rem; padding-bottom: 2rem; position: relative; z-index: 2; }
+
+    .page.has-focus .card,.page.has-focus .vt-unified,.page.has-focus .coming-soon,.page.has-focus .threat-summary,.page.has-focus .attack-card,.page.has-focus .graph-main-card,.page.has-focus .mini-chart-card { opacity: 0.2; filter: blur(1px) brightness(0.65); transform: scale(0.97); }
+    .page.has-focus .hero { opacity: 1; filter: none; }
+    .page.has-focus .card.focused,.page.has-focus .vt-unified.focused,.page.has-focus .coming-soon.focused,.page.has-focus .threat-summary.focused,.page.has-focus .attack-card.focused,.page.has-focus .graph-main-card.focused,.page.has-focus .mini-chart-card.focused { opacity: 1 !important; filter: none !important; transform: scale(1.035) translateY(-3px) !important; box-shadow: 0 0 0 1px rgba(56,189,248,0.35), 0 20px 56px rgba(0,0,0,0.65), 0 0 30px rgba(56,189,248,0.08) !important; z-index: 30 !important; }
+  </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<!-- ══════════════════════════════════════════════════
+     GUEST NOTICE BANNER — shown only for guest sessions
+     Matches index.html guest-banner exactly
+══════════════════════════════════════════════════ -->
+{% if user_is_guest %}
+<div class="guest-banner visible">
+  <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  <span><strong>Guest Session</strong> — Analysis history is stored locally in your browser.</span>
+  <a href="/login">Login to save history permanently →</a>
+</div>
+{% endif %}
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">
+      <img src="/static/images/logo.png" alt="Logo"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='block'"
+           style="display:block">
+      <svg viewBox="0 0 24 24" style="display:none">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="M12 8v4M12 16h.01"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-name">MalVizor</div>
+      <div class="logo-sub">Static Threat Analysis</div>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <!-- SYSTEM ONLINE pill -->
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      SYSTEM ONLINE
+    </div>
+
+    <!-- PDF download button -->
+    {% if weasyprint_available %}
+    <a id="header-pdf-btn" href="#" class="pdf-btn" onclick="triggerPdfDownload(event, this)">
+      <svg viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download PDF
+    </a>
+    {% else %}
+    <div class="pdf-na">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      PDF Unavailable
+    </div>
+    {% endif %}
+
+    <!-- Back to dashboard -->
+    <a href="/" class="back-btn">← Dashboard</a>
+
+    <!-- ── SESSION BADGE ── -->
+    {% if user_is_guest %}
+    <div class="session-badge guest">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="badge-dot"></span>
+      GUEST SESSION
+    </div>
+    {% elif user_logged_in %}
+    <div class="session-badge loggedin">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+      <span class="badge-dot"></span>
+      {{ session_username | upper if session_username else 'USER' }}
+    </div>
+    {% endif %}
+
+    <!-- ── AUTH BUTTON: Logout for logged-in / Exit Guest Mode for guests ── -->
+    {% if user_is_guest %}
+    <a href="/login" class="header-btn exit-guest" title="Exit guest mode and log in">
+      <svg viewBox="0 0 24 24">
+        <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/>
+        <polyline points="10 17 15 12 10 7"/>
+        <line x1="15" y1="12" x2="3" y2="12"/>
+      </svg>
+      Exit Guest Mode
+    </a>
+    {% else %}
+    <a href="/logout" class="header-btn logout" title="Sign out">
+      <svg viewBox="0 0 24 24">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      Logout
+    </a>
+    {% endif %}
+  </div>
+</header>
+
+<div class="page-body">
+<main class="page">
+
+  {% set cls    = report.classification | lower %}
+  {% set offset = 220 - ((report.threat_score / 100) * 220) %}
+
+  <div class="hero {{ cls }}">
+    <div class="score-ring {{ cls }}">
+      <svg viewBox="0 0 88 88">
+        <circle class="ring-bg" cx="44" cy="44" r="34"/>
+        <circle class="ring-fg" cx="44" cy="44" r="34" style="stroke-dashoffset:{{ offset | round | int }}"/>
+      </svg>
+      <div class="score-num">{{ report.threat_score }}</div>
+    </div>
+    <div class="hero-info">
+      <div class="hero-cls">{{ report.classification | upper }}</div>
+      <div class="hero-meta">
+        <div class="meta-item"><label>File</label><span>{{ report.summary.file_name }}</span></div>
+        <div class="meta-item"><label>Size</label><span>{{ report.summary.file_size }}</span></div>
+        <div class="meta-item"><label>Type</label><span>{{ report.summary.file_type | clean_file_type }}</span></div>
+        <div class="meta-item"><label>Analyzed</label><span>{{ report.summary.timestamp | format_datetime }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  {% if report.indicators %}
+  <div class="row row-main-side">
+    <div class="card card-red">
+      <div class="card-hdr">
+        <div class="card-title"><span class="icon">⚠️</span> Threat Indicators</div>
+        <span class="badge badge-red">{{ report.indicators | length }} Found</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="ind-scroll">
+          {% for ind in report.indicators %}
+          <div class="indicator {{ ind.severity | lower }}" style="margin:0.3rem 0.85rem">
+            <div class="ind-badge {{ ind.severity | lower }}">{{ ind.severity }}</div>
+            <div class="ind-score">+{{ ind.points }}</div>
+            <div class="ind-desc">{{ ind.description }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-stack">
+      {% if report.static_analysis.entropy %}
+      {% set ent = report.static_analysis.entropy %}
+      {% set ent_pct = ((ent.value / 8) * 100) | round | int %}
+      <div class="card card-amber">
+        <div class="card-hdr">
+          <div class="card-title"><span class="icon">📊</span> Entropy</div>
+          <span class="badge badge-amber">{{ ent.level | replace('_',' ') | capitalize }}</span>
+        </div>
+        <div class="card-body">
+          <div class="ent-big">{{ ent.value }}</div>
+          <div class="ent-bar"><div class="ent-fill {{ ent.level }}" style="width:{{ ent_pct }}%"></div></div>
+          <div class="ent-desc">{{ ent.description }}</div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if report.static_analysis.pe_info and report.static_analysis.pe_info.available %}
+      {% set pe = report.static_analysis.pe_info %}
+      <div class="card card-cyan" style="flex:1">
+        <div class="card-hdr">
+          <div class="card-title"><span class="icon">🔩</span> PE Information</div>
+          {% if pe.suspicious_imports %}<span class="badge badge-red">{{ pe.suspicious_imports | length }} Suspicious</span>{% endif %}
+        </div>
+        <div class="card-body">
+          <div class="pe-stat-grid">
+            <div class="pe-stat"><label>Compile time</label><span>{{ pe.compile_time }}</span></div>
+            {% if pe.machine_type %}<div class="pe-stat"><label>Architecture</label><span>{{ pe.machine_type }}</span></div>{% endif %}
+            {% if pe.entry_point  %}<div class="pe-stat"><label>Entry point</label><span>{{ pe.entry_point }}</span></div>{% endif %}
+            {% if pe.sections     %}<div class="pe-stat"><label>Sections</label><span style="font-family:var(--mono);font-size:11px;color:var(--text-bright);font-weight:700">{{ pe.sections | length }}</span></div>{% endif %}
+          </div>
+          {% if pe.sections %}
+          <button class="sec-launch-btn" onclick="openSectionsModal()" title="Click to analyse all PE sections">
+            <div class="sec-launch-pulse"></div>
+            <div class="sec-launch-icon">
+              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="sec-launch-info">
+              <span class="sec-launch-label">PE Sections</span>
+              <div class="sec-launch-count">{{ pe.sections | length }}<span class="sec-launch-count-sub">sections detected</span></div>
+            </div>
+            <div class="sec-launch-arrow">↗</div>
+          </button>
+          {% endif %}
+          {% if pe.suspicious_imports %}
+          <div class="imp-label" style="margin-top:0.7rem">Suspicious Imports</div>
+          <div class="imp-scroll">
+          {% for imp in pe.suspicious_imports %}
+          <div class="imp-item">{{ imp.function }} <span style="color:var(--text-muted)">({{ imp.dll }})</span></div>
+          {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="card card-cyan" style="flex:1">
+        <div class="card-hdr">
+          <div class="card-title"><span class="icon">🔩</span> PE Information</div>
+          <span class="badge badge-gray">N/A</span>
+        </div>
+        <div class="card-body">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text-ghost);padding:.5rem 0">
+            {% if report.static_analysis.pe_info %}{{ report.static_analysis.pe_info.reason }}{% else %}Not a PE/executable file — PE header analysis skipped.{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="row row-2-equal" style="margin-bottom:1rem">
+    {% if report.static_analysis.entropy %}
+    {% set ent = report.static_analysis.entropy %}
+    {% set ent_pct = ((ent.value / 8) * 100) | round | int %}
+    <div class="card card-amber">
+      <div class="card-hdr">
+        <div class="card-title"><span class="icon">📊</span> Entropy</div>
+        <span class="badge badge-amber">{{ ent.level | replace('_',' ') | capitalize }}</span>
+      </div>
+      <div class="card-body">
+        <div class="ent-big">{{ ent.value }}</div>
+        <div class="ent-bar"><div class="ent-fill {{ ent.level }}" style="width:{{ ent_pct }}%"></div></div>
+        <div class="ent-desc">{{ ent.description }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if report.static_analysis.pe_info and report.static_analysis.pe_info.available %}
+    {% set pe = report.static_analysis.pe_info %}
+    <div class="card card-cyan">
+      <div class="card-hdr">
+        <div class="card-title"><span class="icon">🔩</span> PE Information</div>
+        {% if pe.suspicious_imports %}<span class="badge badge-red">{{ pe.suspicious_imports | length }} Suspicious</span>{% endif %}
+      </div>
+      <div class="card-body">
+        <div class="pe-stat-grid">
+          <div class="pe-stat"><label>Compile time</label><span>{{ pe.compile_time }}</span></div>
+          {% if pe.machine_type %}<div class="pe-stat"><label>Architecture</label><span>{{ pe.machine_type }}</span></div>{% endif %}
+          {% if pe.entry_point  %}<div class="pe-stat"><label>Entry point</label><span>{{ pe.entry_point }}</span></div>{% endif %}
+          {% if pe.sections     %}<div class="pe-stat"><label>Sections</label><span style="font-family:var(--mono);font-size:11px;color:var(--text-bright);font-weight:700">{{ pe.sections | length }}</span></div>{% endif %}
+        </div>
+        {% if pe.sections %}
+        <button class="sec-launch-btn" onclick="openSectionsModal()" title="Click to analyse all PE sections">
+          <div class="sec-launch-pulse"></div>
+          <div class="sec-launch-icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div class="sec-launch-info">
+            <span class="sec-launch-label">PE Sections</span>
+            <div class="sec-launch-count">{{ pe.sections | length }}<span class="sec-launch-count-sub">sections detected</span></div>
+          </div>
+          <div class="sec-launch-arrow">↗</div>
+        </button>
+        {% endif %}
+        {% if pe.suspicious_imports %}
+        <div class="imp-label" style="margin-top:0.7rem">Suspicious Imports</div>
+        <div class="imp-scroll">
+        {% for imp in pe.suspicious_imports %}
+        <div class="imp-item">{{ imp.function }} <span style="color:var(--text-muted)">({{ imp.dll }})</span></div>
+        {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card card-cyan">
+      <div class="card-hdr">
+        <div class="card-title"><span class="icon">🔩</span> PE Information</div>
+        <span class="badge badge-gray">N/A</span>
+      </div>
+      <div class="card-body">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-ghost);padding:.5rem 0">
+          {% if report.static_analysis.pe_info %}{{ report.static_analysis.pe_info.reason }}{% else %}Not a PE/executable file — PE header analysis skipped.{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="row row-3">
+
+    {% if report.static_analysis.hashes %}
+    <div class="card card-blue">
+      <div class="card-hdr"><div class="card-title"><span class="icon">🔑</span> File Hashes</div></div>
+      <div class="card-body">
+        {% for algo, value in report.static_analysis.hashes.items() %}
+        <div class="hash-row">
+          <span class="hash-algo">{{ algo | upper }}</span>
+          <span class="hash-val" id="hash-{{ algo }}">{{ value }}</span>
+          <button class="copy-btn" onclick="copyHash('{{ algo }}', '{{ value }}', this)" title="Copy {{ algo | upper }}">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+            Copy
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% set yr = report.static_analysis.yara %}
+    <div class="card card-purple">
+      <div class="card-hdr">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          YARA Detection
+        </div>
+        {% if yr and yr.available %}
+          {% if yr.total_matches > 0 %}<span class="badge badge-red">{{ yr.total_matches }} Matched</span>
+          {% else %}<span class="badge badge-green">Clean</span>{% endif %}
+        {% else %}<span class="badge badge-purple">N/A</span>{% endif %}
+      </div>
+      <div class="card-body">
+        {% if not yr or not yr.available %}
+        <div class="yara-unavail">
+          <div class="yara-unavail-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+          <div><div class="yara-unavail-title">YARA unavailable</div><div class="yara-unavail-text">{{ yr.reason if yr else "yara-python not installed" }}.</div><div class="yara-unavail-code">pip install yara-python</div></div>
+        </div>
+        {% elif yr.available and yr.total_matches == 0 %}
+        <div class="yara-clean">
+          <div class="yara-clean-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <div><div class="yara-clean-title">No rules matched</div><div class="yara-clean-text">Scanned against all loaded rules — no matches triggered.</div></div>
+        </div>
+        {% elif yr.available and yr.total_matches > 0 %}
+        <div class="yara-summary-bar">
+          <div class="yara-count-big hit-count">{{ yr.total_matches }}</div>
+          <div>
+            <div class="yara-summary-label">rules matched — highest:</div>
+            <div class="yara-summary-sev sev-{{ yr.highest_severity }}"><span class="yara-sev-dot"></span>{{ yr.highest_severity | upper }}</div>
+          </div>
+        </div>
+        <div class="yara-rules-title">Matched Rules</div>
+        {% for match in yr.matched %}
+        <div class="yara-rule-item sev-{{ match.severity | lower }}">
+          <div class="yara-rule-top"><div class="yara-rule-name">{{ match.rule }}</div><span class="yara-rule-sev-badge {{ match.severity | lower }}">{{ match.severity | upper }}</span></div>
+          <div class="yara-rule-desc">{{ match.description }}</div>
+          <div class="yara-rule-meta"><span class="yara-cat-badge">{{ match.category }}</span>{% for tag in match.tags %}<span class="yara-tag">{{ tag }}</span>{% endfor %}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% set s = report.static_analysis.strings.interesting if (report.static_analysis.strings and report.static_analysis.strings.interesting) else None %}
+    {% set has_strings = s and (s.urls or s.ip_addresses or s.suspicious_keywords or s.emails or s.mutex_names or s.file_paths or s.registry_keys) %}
+    {% set total_strings = (
+        (s.urls | length) +
+        (s.ip_addresses | length) +
+        (s.suspicious_keywords | length) +
+        (s.emails | length if s.emails else 0) +
+        (s.mutex_names | length if s.mutex_names else 0) +
+        (s.file_paths | length if s.file_paths else 0) +
+        (s.registry_keys | length if s.registry_keys else 0)
+    ) if has_strings else 0 %}
+    <div class="card card-green">
+      <div class="card-hdr">
+        <div class="card-title"><span class="icon">🔍</span> Interesting Strings</div>
+        {% if has_strings %}
+          <span class="badge badge-amber">{{ total_strings }} Found</span>
+        {% else %}
+          <span class="badge badge-green">Clean</span>
+        {% endif %}
+      </div>
+      <div class="str-card-body">
+        {% if has_strings %}
+          {% if s.urls %}
+          <div class="str-section">
+            <div class="str-label">URLs / Domains <span style="color:var(--text-ghost);font-weight:400">({{ s.urls|length }})</span></div>
+            <div class="scroll-section">
+              <div class="scroll-inner js-scroll">
+                {% for u in s.urls %}<div class="str-item url"><span class="str-dot"></span>{{ u }}</div>{% endfor %}
+              </div>
+              {% if s.urls|length > 5 %}<div class="scroll-fade"></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% if s.ip_addresses %}
+          <div class="str-section">
+            <div class="str-label">IP Addresses <span style="color:var(--text-ghost);font-weight:400">({{ s.ip_addresses|length }})</span></div>
+            <div class="scroll-section">
+              <div class="scroll-inner js-scroll">
+                {% for ip in s.ip_addresses %}<div class="str-item ip"><span class="str-dot"></span>{{ ip }}</div>{% endfor %}
+              </div>
+              {% if s.ip_addresses|length > 5 %}<div class="scroll-fade"></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% if s.emails %}
+          <div class="str-section">
+            <div class="str-label">Email Addresses <span style="color:var(--text-ghost);font-weight:400">({{ s.emails|length }})</span></div>
+            <div class="scroll-section">
+              <div class="scroll-inner js-scroll">
+                {% for e in s.emails %}<div class="str-item" style="color:#67e8f9"><span class="str-dot" style="background:#06b6d4;flex-shrink:0;margin-top:4px"></span>{{ e }}</div>{% endfor %}
+              </div>
+              {% if s.emails|length > 5 %}<div class="scroll-fade"></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% if s.registry_keys %}
+          <div class="str-section">
+            <div class="str-label">Registry Keys <span style="color:var(--text-ghost);font-weight:400">({{ s.registry_keys|length }})</span></div>
+            <div class="scroll-section">
+              <div class="scroll-inner js-scroll">
+                {% for r in s.registry_keys %}<div class="str-item" style="color:#f0abfc"><span class="str-dot" style="background:#c026d3;flex-shrink:0;margin-top:4px"></span>{{ r }}</div>{% endfor %}
+              </div>
+              {% if s.registry_keys|length > 5 %}<div class="scroll-fade"></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% if s.file_paths %}
+          <div class="str-section">
+            <div class="str-label">File Paths <span style="color:var(--text-ghost);font-weight:400">({{ s.file_paths|length }})</span></div>
+            <div class="scroll-section">
+              <div class="scroll-inner js-scroll">
+                {% for p in s.file_paths %}<div class="str-item" style="color:#86efac"><span class="str-dot" style="background:#16a34a;flex-shrink:0;margin-top:4px"></span>{{ p }}</div>{% endfor %}
+              </div>
+              {% if s.file_paths|length > 5 %}<div class="scroll-fade"></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% if s.mutex_names %}
+          <div class="str-section">
+            <div class="str-label">Mutex / GUIDs <span style="color:var(--text-ghost);font-weight:400">({{ s.mutex_names|length }})</span></div>
+            <div class="scroll-section">
+              <div class="scroll-inner js-scroll">
+                {% for m in s.mutex_names %}<div class="str-item" style="color:#fda4af"><span class="str-dot" style="background:#e11d48;flex-shrink:0;margin-top:4px"></span>{{ m }}</div>{% endfor %}
+              </div>
+              {% if s.mutex_names|length > 5 %}<div class="scroll-fade"></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% if s.suspicious_keywords %}
+          <div class="str-section" style="margin-bottom:0">
+            <div class="str-label">Suspicious Keywords <span style="color:var(--text-ghost);font-weight:400">({{ s.suspicious_keywords|length }})</span></div>
+            <div class="scroll-section">
+              <div class="scroll-inner js-scroll">
+                {% for k in s.suspicious_keywords %}<div class="str-item kw"><span class="str-dot"></span>{{ k }}</div>{% endfor %}
+              </div>
+              {% if s.suspicious_keywords|length > 5 %}<div class="scroll-fade" style="background:linear-gradient(transparent,var(--bg-panel))"></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+        {% else %}
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="width:34px;height:34px;border-radius:8px;background:rgba(52,211,153,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--green)" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div>
+              <div style="font-family:var(--sans);font-size:13px;font-weight:700;color:var(--text-bright);margin-bottom:4px">No suspicious strings found</div>
+              <div style="font-family:var(--sans);font-size:12px;color:var(--text-muted);line-height:1.5">No URLs, IP addresses, or suspicious keywords detected in extracted strings.</div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  {% set vt = report.static_analysis.virustotal %}
+  <div class="vt-unified">
+    <div class="vt-unified-hdr">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="var(--cyan)" fill="none" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        VirusTotal &amp; Engine Results
+      </div>
+      {% if vt and vt.available and vt.found and vt.malicious > 0 %}<span class="badge badge-red">{{ vt.malicious }} Detections</span>
+      {% elif vt and vt.available and vt.found %}<span class="badge badge-green">Clean</span>
+      {% else %}<span class="badge badge-blue">Check Hash</span>{% endif %}
+    </div>
+    <div class="vt-unified-body">
+      <div class="vt-left">
+        {% if not vt or (not vt.available and vt.reason == "no_key") %}
+        <div class="vt-nokey">
+          <div class="vt-nk-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+          <div><div class="vt-nk-title">API key not configured</div><div class="vt-nk-text">Add your key to config.py to enable lookups.</div><div class="vt-nk-code">VIRUSTOTAL_API_KEY = "..."</div></div>
+        </div>
+        {% elif vt.available and not vt.found %}
+        <div class="vt-notfound">
+          <div class="vt-nf-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+          <div><div class="vt-nf-title">Not found in VirusTotal</div><div class="vt-nf-text">Hash has never been submitted before.</div></div>
+        </div>
+        {% elif vt.available and vt.found %}
+          {% set pct = ((vt.malicious / vt.total_engines) * 100) | round | int if vt.total_engines > 0 else 0 %}
+          <div class="vt-score-wrap"><span class="vt-big">{{ vt.malicious }}</span><span class="vt-slash">/</span><span class="vt-total">{{ vt.total_engines }}</span></div>
+          <div class="vt-caption">engines flagged this file as malicious</div>
+          <div class="vt-stat-row">
+            <div class="vt-stat-pill mal"><span class="num">{{ vt.malicious }}</span><span class="lbl">Malicious</span></div>
+            {% if vt.suspicious is defined %}<div class="vt-stat-pill sus"><span class="num">{{ vt.suspicious }}</span><span class="lbl">Suspicious</span></div>{% endif %}
+            <div class="vt-stat-pill cln"><span class="num">{{ vt.undetected }}</span><span class="lbl">Clean</span></div>
+          </div>
+          <div class="vt-bar-labels"><span style="color:var(--red)">{{ vt.malicious }} malicious</span><span style="color:var(--green)">{{ vt.undetected }} clean</span></div>
+          <div class="vt-bar-bg"><div class="vt-bar-fill {% if pct < 20 %}low{% endif %}" style="width:{{ pct }}%"></div></div>
+          <a class="vt-link" href="{{ vt.vt_link }}" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            View on VirusTotal
+          </a>
+        {% else %}
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Lookup failed: {{ vt.reason if vt else "unknown error" }}</div>
+        {% endif %}
+      </div>
+      <div class="vt-right">
+        <div class="engines-title">🛡 Engine Results</div>
+        {% if vt and vt.available and vt.found and vt.engines %}
+        <div class="engines-scroll"><div class="engines-grid">
+          {% for eng in vt.engines %}
+          <div class="engine-item">
+            <span class="engine-dot {{ eng.category }}"></span>
+            <span class="engine-name">{{ eng.name }}</span>
+            <span class="engine-result {{ eng.category }}">{% if eng.category in ['malicious','suspicious'] %}{{ eng.result }}{% else %}Clean{% endif %}</span>
+          </div>
+          {% endfor %}
+        </div></div>
+        {% elif vt and vt.available and vt.found %}<div class="engines-na">No engine results available.</div>
+        {% else %}<div class="engines-na">Engine data unavailable — VirusTotal lookup required.</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% set atk = report.static_analysis.mitre_attack %}
+  <div class="attack-card">
+    <div class="attack-hdr">
+      <div class="attack-hdr-left">
+        <div class="attack-hdr-title">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="var(--orange)"/></svg>
+          MITRE ATT&amp;CK Mapping
+        </div>
+      </div>
+      <div class="attack-hdr-badges">
+        {% if atk and atk.total > 0 %}
+          <span class="badge badge-orange">{{ atk.total }} Technique{{ 's' if atk.total != 1 }}</span>
+          <span class="badge badge-gray">{{ atk.tactic_count }} Tactic{{ 's' if atk.tactic_count != 1 }}</span>
+        {% else %}
+          <span class="badge badge-green">No Techniques Mapped</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if atk and atk.total > 0 %}
+    <div class="attack-summary">
+      <div class="attack-stat"><div class="attack-stat-num c-total">{{ atk.total }}</div><div class="attack-stat-lbl">Techniques</div></div>
+      <div class="attack-stat"><div class="attack-stat-num c-tactic">{{ atk.tactic_count }}</div><div class="attack-stat-lbl">Tactics</div></div>
+      <div class="attack-stat"><div class="attack-stat-num c-high">{{ atk.high_count }}</div><div class="attack-stat-lbl">High Conf.</div></div>
+      <div class="attack-stat"><div class="attack-stat-num c-med">{{ atk.medium_count }}</div><div class="attack-stat-lbl">Med Conf.</div></div>
+      <div class="attack-stat"><div class="attack-stat-num c-low">{{ atk.low_count }}</div><div class="attack-stat-lbl">Low Conf.</div></div>
+    </div>
+    <div class="attack-body">
+      {% for tactic, techniques in atk.tactics_map.items() %}
+      <div class="attack-tactic-group">
+        <div class="attack-tactic-label">{{ tactic }}</div>
+        <div class="attack-techniques">
+          {% for t in techniques %}
+          <a class="atk-chip" href="{{ t.url }}" target="_blank" rel="noopener">
+            <span class="atk-chip-conf {{ t.confidence }}"></span>
+            <span class="atk-chip-id">{{ t.id }}</span>
+            <span class="atk-chip-name">{{ t.name }}</span>
+            <div class="atk-chip-tooltip">
+              <div class="atk-tooltip-id">{{ t.id }}</div>
+              <div class="atk-tooltip-name">{{ t.name }}</div>
+              {% if t.evidence %}<div class="atk-tooltip-ev">{{ t.evidence }}</div>{% endif %}
+              <div class="atk-tooltip-conf {{ t.confidence }}">● {{ t.confidence | upper }} CONFIDENCE</div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="attack-legend">
+      <div class="attack-legend-label">Confidence</div>
+      <div class="attack-legend-items">
+        <div class="attack-legend-item"><span class="attack-legend-dot" style="background:var(--red)"></span>High</div>
+        <div class="attack-legend-item"><span class="attack-legend-dot" style="background:var(--amber)"></span>Medium</div>
+        <div class="attack-legend-item"><span class="attack-legend-dot" style="background:var(--green)"></span>Low</div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text-ghost)">Hover technique for evidence · Click to open ATT&amp;CK</div>
+    </div>
+    {% else %}
+    <div class="attack-body">
+      <div class="attack-empty">
+        <div class="attack-empty-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div>
+          <div class="attack-empty-title">No ATT&amp;CK techniques mapped</div>
+          <div class="attack-empty-text">No observable indicators matched known ATT&amp;CK technique patterns in this file.</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="graph-section-label">Visual Analysis</div>
+  <div class="graph-overview">
+    <div class="graph-top-row">
+      <div class="graph-main-card" id="main-waterfall-card" onclick="openPopup('waterfall')">
+        <div class="graph-main-hdr">
+          <div class="graph-main-title">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Score Build-up — Waterfall
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="badge badge-red" style="font-size:10px">Score {{ report.threat_score }}/100</span>
+            <span class="graph-main-hint">Click to expand</span>
+          </div>
+        </div>
+        <div class="graph-main-body">
+          <div style="position:relative;width:100%;height:200px">
+            <canvas id="chart-waterfall-main" role="img" aria-label="Score build-up waterfall chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="graph-bottom-row">
+      <div class="mini-chart-card mc-severity" id="mini-severity-card" onclick="openPopup('severity')">
+        <div class="mc-hdr">
+          <div class="mc-icon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div>
+          <div><div class="mc-label">Severity Split</div><div class="mc-sub">Score by indicator level</div></div>
+        </div>
+        <div class="mc-body">
+          <div class="mini-bar-row"><div class="mini-bar-label">Critical</div><div class="mini-bar-track"><div class="mini-bar-fill" id="sev-bar-critical" style="width:0%;background:var(--red)"></div></div><div class="mini-bar-val" id="sev-val-critical">—</div></div>
+          <div class="mini-bar-row"><div class="mini-bar-label">High</div><div class="mini-bar-track"><div class="mini-bar-fill" id="sev-bar-high" style="width:0%;background:var(--orange)"></div></div><div class="mini-bar-val" id="sev-val-high">—</div></div>
+          <div class="mini-bar-row"><div class="mini-bar-label">Medium</div><div class="mini-bar-track"><div class="mini-bar-fill" id="sev-bar-medium" style="width:0%;background:var(--amber)"></div></div><div class="mini-bar-val" id="sev-val-medium">—</div></div>
+          <div class="mini-bar-row"><div class="mini-bar-label">Low</div><div class="mini-bar-track"><div class="mini-bar-fill" id="sev-bar-low" style="width:0%;background:var(--green)"></div></div><div class="mini-bar-val" id="sev-val-low">—</div></div>
+        </div>
+        <div class="mc-expand-hint">↗ click to expand</div>
+      </div>
+
+      <div class="mini-chart-card mc-strings" id="mini-strings-card" onclick="openPopup('strings')">
+        <div class="mc-hdr">
+          <div class="mc-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></div>
+          <div><div class="mc-label">Strings &amp; APIs</div><div class="mc-sub">Interesting extractions</div></div>
+        </div>
+        <div class="mc-body" style="align-items:center">
+          <div style="position:relative;width:100%;height:80px"><canvas id="chart-strings-mini" role="img" aria-label="Strings breakdown mini donut"></canvas></div>
+        </div>
+        <div class="mc-expand-hint">↗ click to expand</div>
+      </div>
+
+      <div class="mini-chart-card mc-entropy" id="mini-entropy-card" onclick="openPopup('entropy')">
+        <div class="mc-hdr">
+          <div class="mc-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div><div class="mc-label">Entropy</div><div class="mc-sub">PE section analysis</div></div>
+        </div>
+        <div class="mc-body">
+          <div style="position:relative;width:100%;height:80px"><canvas id="chart-entropy-mini" role="img" aria-label="Entropy mini bar"></canvas></div>
+        </div>
+        <div class="mc-expand-hint">↗ click to expand</div>
+      </div>
+
+      <div class="mini-chart-card mc-mitre" id="mini-mitre-card" onclick="openPopup('mitre')">
+        <div class="mc-hdr">
+          <div class="mc-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div>
+          <div><div class="mc-label">MITRE Radar</div><div class="mc-sub">Tactic coverage</div></div>
+        </div>
+        <div class="mc-body">
+          <div style="position:relative;width:100%;height:80px"><canvas id="chart-mitre-mini" role="img" aria-label="MITRE radar mini"></canvas></div>
+        </div>
+        <div class="mc-expand-hint">↗ click to expand</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-popup-overlay" id="chart-popup-overlay" onclick="closePopupOutside(event)">
+    <div class="chart-popup" id="chart-popup-box">
+      <div class="chart-popup-hdr">
+        <div class="chart-popup-title" id="popup-title">
+          <svg id="popup-icon" viewBox="0 0 24 24" style="stroke:var(--cyan)"></svg>
+          <span id="popup-title-text">Chart</span>
+        </div>
+        <div class="chart-popup-close" onclick="closePopup()">✕</div>
+      </div>
+      <div class="chart-popup-body">
+        <div class="popup-legend" id="popup-legend"></div>
+        <div class="popup-canvas-wrap" id="popup-canvas-wrap">
+          <canvas id="chart-popup-canvas" role="img" aria-label="Expanded chart view"></canvas>
+        </div>
+        <div id="popup-extra" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+
+  {% set score = report.threat_score %}
+  {% set conf = "HIGH" if score >= 70 else ("MEDIUM" if score >= 35 else "LOW") %}
+
+  <div class="threat-summary {{ cls }}">
+    <div class="ts-header">
+      <div class="ts-icon">
+        {% if cls == 'malicious' %}<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        {% elif cls == 'suspicious' %}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {% else %}<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>{% endif %}
+      </div>
+      <div class="ts-title">
+        {% if cls == 'malicious' %}This file is classified as MALICIOUS because:
+        {% elif cls == 'suspicious' %}This file is classified as SUSPICIOUS because:
+        {% else %}This file appears BENIGN — here's why:{% endif %}
+      </div>
+    </div>
+    <div class="ts-body">
+      <ul class="ts-reasons">
+        {% if report.static_analysis.entropy %}{% set ent = report.static_analysis.entropy %}
+          {% if ent.level == 'very_high' %}<li class="ts-reason"><span class="ts-reason-dot critical"></span>Very high entropy ({{ ent.value }}) — file is likely packed or encrypted to evade detection</li>
+          {% elif ent.level == 'high' %}<li class="ts-reason"><span class="ts-reason-dot high"></span>High entropy ({{ ent.value }}) — file may be compressed or packed</li>
+          {% elif ent.level in ['normal', 'moderate'] %}<li class="ts-reason"><span class="ts-reason-dot low"></span>Normal entropy ({{ ent.value }}) — file content appears unobfuscated</li>{% endif %}
+        {% endif %}
+        {% set yr = report.static_analysis.yara %}
+        {% if yr and yr.available and yr.total_matches > 0 %}
+          {% if yr.highest_severity == 'critical' %}<li class="ts-reason"><span class="ts-reason-dot critical"></span>{{ yr.total_matches }} YARA rule{{ 's' if yr.total_matches != 1 }} matched — highest severity CRITICAL ({{ yr.matched[0].category if yr.matched else 'malware' }})</li>
+          {% elif yr.highest_severity == 'high' %}<li class="ts-reason"><span class="ts-reason-dot high"></span>{{ yr.total_matches }} YARA rule{{ 's' if yr.total_matches != 1 }} matched — includes high-severity patterns</li>
+          {% else %}<li class="ts-reason"><span class="ts-reason-dot medium"></span>{{ yr.total_matches }} YARA rule{{ 's' if yr.total_matches != 1 }} matched — {{ yr.highest_severity }} severity patterns detected</li>{% endif %}
+        {% elif yr and yr.available and yr.total_matches == 0 %}<li class="ts-reason"><span class="ts-reason-dot low"></span>No YARA rules matched — no known malware signatures detected</li>{% endif %}
+        {% set si = report.static_analysis.strings.interesting if report.static_analysis.strings and report.static_analysis.strings.interesting else {} %}
+        {% set kws      = si.suspicious_keywords if si.suspicious_keywords else [] %}
+        {% set si_urls  = si.urls | length if si.urls else 0 %}
+        {% set si_ips   = si.ip_addresses | length if si.ip_addresses else 0 %}
+        {% set si_paths = si.file_paths | length if si.file_paths else 0 %}
+        {% set si_mutex = si.mutex_names | length if si.mutex_names else 0 %}
+        {% set si_email = si.emails | length if si.emails else 0 %}
+        {% set si_reg   = si.registry_keys | length if si.registry_keys else 0 %}
+        {% set all_str_count = (si_urls + si_ips + (kws|length) + si_email + si_mutex + si_reg + si_paths) %}
+        {% if all_str_count > 0 %}
+          {% set parts = [] %}
+          {% if kws|length > 0 %}{% set _ = parts.append(kws|length ~ ' keyword' ~ ('s' if kws|length != 1 else '')) %}{% endif %}
+          {% if si_urls > 0 %}{% set _ = parts.append(si_urls ~ ' URL' ~ ('s' if si_urls != 1 else '')) %}{% endif %}
+          {% if si_ips > 0 %}{% set _ = parts.append(si_ips ~ ' IP' ~ ('s' if si_ips != 1 else '')) %}{% endif %}
+          {% if si_paths > 0 %}{% set _ = parts.append(si_paths ~ ' file path' ~ ('s' if si_paths != 1 else '')) %}{% endif %}
+          {% if si_mutex > 0 %}{% set _ = parts.append(si_mutex ~ ' mutex/GUID' ~ ('s' if si_mutex != 1 else '')) %}{% endif %}
+          {% if si_email > 0 %}{% set _ = parts.append(si_email ~ ' email' ~ ('s' if si_email != 1 else '')) %}{% endif %}
+          {% if si_reg > 0 %}{% set _ = parts.append(si_reg ~ ' registry key' ~ ('s' if si_reg != 1 else '')) %}{% endif %}
+          <li class="ts-reason">
+            <span class="ts-reason-dot {{ 'high' if kws|length > 0 or si_urls > 0 else 'medium' }}"></span>
+            {{ all_str_count }} suspicious string{{ 's' if all_str_count != 1 }} found — {{ parts | join(', ') }}
+          </li>
+        {% endif %}
+        {% set atk = report.static_analysis.mitre_attack %}
+        {% if atk and atk.available and atk.total > 0 %}
+          <li class="ts-reason"><span class="ts-reason-dot {{ 'critical' if atk.high_count > 3 else 'high' }}"></span>{{ atk.total }} MITRE ATT&amp;CK technique{{ 's' if atk.total != 1 }} mapped across {{ atk.tactic_count }} tactic{{ 's' if atk.tactic_count != 1 }} ({{ atk.high_count }} high-confidence)</li>
+        {% endif %}
+        {% set vt = report.static_analysis.virustotal %}
+        {% if vt and vt.available and vt.found %}
+          {% if vt.malicious > 0 %}{% set vt_pct = ((vt.malicious / vt.total_engines) * 100) | round | int %}
+          <li class="ts-reason"><span class="ts-reason-dot {{ 'critical' if vt_pct > 50 else 'high' }}"></span>VirusTotal: {{ vt.malicious }}/{{ vt.total_engines }} security engines flagged this file ({{ vt_pct }}% detection rate)</li>
+          {% else %}<li class="ts-reason"><span class="ts-reason-dot low"></span>VirusTotal: 0/{{ vt.total_engines }} engines detected any threat — file is clean in VT database</li>{% endif %}
+        {% elif vt and vt.available and not vt.found %}<li class="ts-reason"><span class="ts-reason-dot medium"></span>Not found in VirusTotal — hash has never been submitted, treat with caution</li>{% endif %}
+        {% set pe = report.static_analysis.pe_info %}
+        {% if pe and pe.available and pe.suspicious_imports %}<li class="ts-reason"><span class="ts-reason-dot high"></span>{{ pe.suspicious_imports | length }} suspicious API import{{ 's' if pe.suspicious_imports | length != 1 }} detected ({{ pe.suspicious_imports[0].function if pe.suspicious_imports else '' }}{% if pe.suspicious_imports | length > 1 %} + {{ pe.suspicious_imports | length - 1 }} more{% endif %})</li>{% endif %}
+      </ul>
+      <div class="ts-confidence">
+        <div class="ts-conf-label">Confidence</div>
+        <div class="ts-conf-value">{{ conf }}</div>
+        <div class="ts-conf-score">Score {{ score }}/100</div>
+        <div class="ts-conf-bar"><div class="ts-conf-fill" style="width:{{ score }}%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="coming-soon">
+    <div class="cs-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+    <div style="flex:1">
+      <div class="cs-badge">Coming Soon</div>
+      <div class="cs-title">Dynamic Analysis Sandbox</div>
+      <div class="cs-desc">Execute files in an isolated environment and monitor registry changes, network calls, and process behavior in real time.</div>
+      <div class="cs-bar"><div class="cs-fill"></div></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="sf-top-line"></div>
+    <div class="sf-inner">
+      <div class="sf-action-row">
+        <div class="sf-socials">
+          <a href="https://github.com/devendra2910" class="sf-social-btn" title="GitHub" aria-label="GitHub">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>GitHub
+          </a>
+          <a href="https://x.com/_mebunny_" class="sf-social-btn" title="Twitter / X" aria-label="Twitter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>Twitter
+          </a>
+          <a href="https://www.linkedin.com/in/devendra-patel-09340a371/" class="sf-social-btn" title="LinkedIn" aria-label="LinkedIn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>LinkedIn
+          </a>
+        </div>
+        <div class="sf-v-sep"></div>
+        <button class="sf-support-btn" id="donate-open-btn">
+          <span class="sf-support-glow"></span>
+          <span class="sf-support-eth-icon">
+            <svg width="14" height="14" viewBox="0 0 32 32" fill="none">
+              <path d="M16 2L3 16.5L16 21.5L29 16.5L16 2Z" fill="#c4b5fd"/>
+              <path d="M16 21.5L3 16.5L16 30L29 16.5L16 21.5Z" fill="#7c3aed"/>
+              <path d="M16 2L16 21.5L29 16.5L16 2Z" fill="#e9d5ff" opacity="0.7"/>
+              <path d="M16 2L3 16.5L16 21.5V2Z" fill="#a78bfa" opacity="0.8"/>
+            </svg>
+          </span>
+          <span class="sf-support-text">Support MalVizor</span>
+          <span class="sf-support-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </button>
+      </div>
+      <div class="sf-brand-row">
+        <svg class="sf-brand-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        <span class="sf-brand-name">MalVizor</span>
+        <span class="sf-dot"></span>
+        <span class="sf-brand-sep">Static Analysis Engine</span>
+        <span class="sf-dot"></span>
+        <span class="sf-brand-sep">v1.0</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Donation Modal — unchanged -->
+  <div class="donate-overlay" id="donate-overlay">
+    <div class="donate-modal" id="donate-modal">
+      <button class="donate-close" id="donate-close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="dm-header">
+        <div class="dm-eth-icon">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L3 16.5L16 21.5L29 16.5L16 2Z" fill="#a78bfa"/>
+            <path d="M16 21.5L3 16.5L16 30L29 16.5L16 21.5Z" fill="#7c3aed"/>
+            <path d="M16 2L16 21.5L29 16.5L16 2Z" fill="#c4b5fd" opacity="0.7"/>
+            <path d="M16 2L3 16.5L16 21.5V2Z" fill="#8b5cf6" opacity="0.8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="dm-title">Buy me a coffee ☕</div>
+          <div class="dm-sub">Support MalVizor development</div>
+        </div>
+      </div>
+      <p class="dm-msg">MalVizor is free for everyone. If it helped you catch a threat or learn something new, consider tipping in ETH — even a small amount means a lot and keeps this project going.</p>
+      <div class="dm-network"><span class="dm-net-dot"></span><span class="dm-net-label">Ethereum Mainnet · Any EVM-compatible chain</span></div>
+      <div class="dm-content">
+        <div class="dm-qr-col">
+          <div class="dm-qr-wrap">
+            <img src="/static/images/eth_qr.png" alt="ETH QR Code" class="dm-qr-img"
+                 onerror="this.parentNode.innerHTML='<div class=\'dm-qr-placeholder\'><svg viewBox=\'0 0 24 24\' width=\'32\' height=\'32\' fill=\'none\' stroke=\'#a78bfa\' stroke-width=\'1.5\'><rect x=\'3\' y=\'3\' width=\'7\' height=\'7\'/><rect x=\'14\' y=\'3\' width=\'7\' height=\'7\'/><rect x=\'3\' y=\'14\' width=\'7\' height=\'7\'/><circle cx=\'17.5\' cy=\'17.5\' r=\'2.5\'/></svg><div>Scan QR</div></div>'">
+            <div class="dm-qr-shine"></div>
+          </div>
+          <div class="dm-qr-label">Scan to send ETH</div>
+        </div>
+        <div class="dm-addr-col">
+          <div class="dm-ens-row">
+            <div class="dm-ens-badge">ENS</div>
+            <span class="dm-ens-name">mebunny.eth</span>
+            <button class="dm-ens-copy-btn" id="dm-ens-copy-btn" title="Copy ENS name">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy
+            </button>
+          </div>
+          <div class="dm-addr-label">Wallet Address</div>
+          <div class="dm-addr-box">
+            <span class="dm-addr-text" id="dm-addr-text">0xE5dA40e1BC1fbDc4d42149257cbF3C2341A27b7e</span>
+            <button class="dm-copy-btn" id="dm-copy-btn" title="Copy address">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              <span id="dm-copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="dm-note">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Only send ETH or ERC-20 tokens. Do not send other assets.
+          </div>
+          <div class="dm-thanks">Thank you for supporting open-source security tools 🙏</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- ══ PE SECTIONS MODAL — unchanged ══ -->
+<div class="sec-overlay" id="sec-overlay" onclick="if(event.target===this)closeSectionsModal()">
+  <div class="sec-modal" id="sec-modal">
+    <div class="sec-modal-hdr">
+      <div class="sec-modal-title">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        PE Section Analysis
+      </div>
+      <div class="sec-modal-close" onclick="closeSectionsModal()">✕</div>
+    </div>
+    <div class="sec-stats-row" id="sec-stats-row"></div>
+    <div class="sec-modal-body">
+      <table class="sec-table">
+        <thead>
+          <tr>
+            <th>Section Name</th>
+            <th>Virtual Size</th>
+            <th>Raw Size</th>
+            <th style="text-align:right">Entropy</th>
+          </tr>
+        </thead>
+        <tbody id="sec-table-body"></tbody>
+      </table>
+    </div>
+    <div class="sec-modal-footer">
+      <div class="sec-leg"><span class="sec-leg-dot" style="background:var(--red)"></span>≥ 7.0 — Suspicious (packed/encrypted)</div>
+      <div class="sec-leg"><span class="sec-leg-dot" style="background:var(--amber)"></span>6.0–6.9 — Elevated</div>
+      <div class="sec-leg"><span class="sec-leg-dot" style="background:var(--green)"></span>&lt; 6.0 — Normal</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     ALL JAVASCRIPT — COMPLETELY UNCHANGED
+══════════════════════════════════════════════════ -->
+<script>
+function copyHash(algo, value, btn) {
+  navigator.clipboard.writeText(value).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy'; }, 2000);
+  }).catch(() => {
+    const el = document.createElement('textarea'); el.value = value; el.style.position = 'fixed'; el.style.opacity = '0'; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+    btn.classList.add('copied'); btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copy'; }, 2000);
+  });
+}
+</script>
+
+<script>
+(function(){
+  const page = document.querySelector('.page');
+  const all  = [...document.querySelectorAll('.card, .vt-unified, .coming-soon, .threat-summary, .attack-card, .graph-main-card, .mini-chart-card')];
+  let timer  = null;
+  all.forEach(el => {
+    el.addEventListener('mouseenter', () => { clearTimeout(timer); all.forEach(f => f.classList.remove('focused')); el.classList.add('focused'); page.classList.add('has-focus'); });
+    el.addEventListener('mouseleave', () => { timer = setTimeout(() => { el.classList.remove('focused'); page.classList.remove('has-focus'); }, 80); });
+  });
+})();
+</script>
+
+<script>
+function triggerPdfDownload(e, btn) {
+  e.preventDefault();
+  const url = window.location.pathname + '/pdf';
+  document.querySelectorAll('.pdf-btn').forEach(b => { b.classList.add('loading'); b.innerHTML = '<div class="spinner"></div> Generating…'; });
+  fetch(url)
+    .then(res => { if (!res.ok) return res.json().then(d => { throw new Error(d.error || 'Failed') }); return res.blob(); })
+    .then(blob => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'MalVizor_Report_{{ report.summary.file_name }}_{{ report.classification }}.pdf'; a.click(); URL.revokeObjectURL(a.href); })
+    .catch(err => { alert('PDF failed: ' + err.message); })
+    .finally(() => {
+      document.querySelectorAll('.pdf-btn').forEach(b => { b.classList.remove('loading'); b.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download PDF'; });
+    });
+}
+</script>
+
+<script>
+(function(){
+  const ringFg  = document.querySelector('.ring-fg');
+  const scoreEl = document.querySelector('.score-num');
+  if(!ringFg || !scoreEl) return;
+  const targetOffset = parseFloat(ringFg.style.strokeDashoffset) || 0;
+  const DASH         = 220;
+  const targetScore  = Math.round((DASH - targetOffset) / DASH * 100);
+  ringFg.style.strokeDashoffset = DASH;
+  scoreEl.textContent = '0';
+  const svg = ringFg.closest('svg');
+  const NS  = 'http://www.w3.org/2000/svg';
+  const orbitDot = document.createElementNS(NS, 'circle');
+  orbitDot.setAttribute('r', '3.2'); orbitDot.setAttribute('fill', 'white');
+  orbitDot.setAttribute('opacity', '0.92'); orbitDot.setAttribute('cx', '44'); orbitDot.setAttribute('cy', '10');
+  svg.appendChild(orbitDot);
+  function easeOutExpo(t){ return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
+  const DURATION = 1700; let startTime = null;
+  function frame(ts) {
+    if(!startTime) startTime = ts;
+    const raw = Math.min((ts - startTime) / DURATION, 1);
+    const eased = easeOutExpo(raw);
+    ringFg.style.strokeDashoffset = DASH - (DASH - targetOffset) * eased;
+    scoreEl.textContent = Math.round(eased * targetScore);
+    const arcDegrees  = (1 - targetOffset / DASH) * 360;
+    const dotAngleRad = (-90 + eased * arcDegrees) * Math.PI / 180;
+    orbitDot.setAttribute('cx', (44 + 34 * Math.cos(dotAngleRad)).toFixed(2));
+    orbitDot.setAttribute('cy', (44 + 34 * Math.sin(dotAngleRad)).toFixed(2));
+    if(raw < 1) { requestAnimationFrame(frame); return; }
+    scoreEl.textContent = targetScore;
+    ringFg.style.strokeDashoffset = targetOffset;
+    const finalAngleRad = (-90 + (1 - targetOffset / DASH) * 360) * Math.PI / 180;
+    const flash = document.createElementNS(NS, 'circle');
+    flash.setAttribute('cx', (44 + 34 * Math.cos(finalAngleRad)).toFixed(2));
+    flash.setAttribute('cy', (44 + 34 * Math.sin(finalAngleRad)).toFixed(2));
+    flash.setAttribute('r', '5'); flash.setAttribute('fill', 'white'); flash.setAttribute('opacity', '0.88');
+    svg.appendChild(flash);
+    let fStart = null;
+    (function fade(ts2){
+      if(!fStart) fStart = ts2;
+      const p = Math.min((ts2 - fStart) / 480, 1);
+      orbitDot.setAttribute('opacity', (0.92 * (1 - p)).toFixed(3));
+      flash.setAttribute('opacity', (0.88 * (1 - p)).toFixed(3));
+      flash.setAttribute('r', (5 + p * 8).toFixed(2));
+      if(p < 1){ requestAnimationFrame(fade); }
+      else {
+        if(orbitDot.parentNode) orbitDot.parentNode.removeChild(orbitDot);
+        if(flash.parentNode)    flash.parentNode.removeChild(flash);
+      }
+    })(ts);
+  }
+  setTimeout(() => requestAnimationFrame(frame), 180);
+})();
+</script>
+
+<script>
+(function(){
+  const canvas = document.createElement('canvas');
+  canvas.id = 'bug-canvas';
+  Object.assign(canvas.style, { position:'fixed', top:'0', left:'0', width:'100vw', height:'100vh', pointerEvents:'none', zIndex:'-1' });
+  document.body.insertBefore(canvas, document.body.firstChild);
+  const ctx = canvas.getContext('2d');
+  function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  const CB='#4ade80', CL='#16a34a', CA='#86efac', CS='rgba(0,0,0,0.20)';
+  let mouseX=-9999, mouseY=-9999, mouseActive=false, mouseTimer=null;
+  window.addEventListener('mousemove', e => { mouseX=e.clientX; mouseY=e.clientY; mouseActive=true; clearTimeout(mouseTimer); mouseTimer=setTimeout(()=>{ mouseActive=false; },1000); });
+  const BASE_SPEED=0.45, BOOST_SPEED=1.4, PROX_RADIUS=180;
+  const bugs = Array.from({length:6}, () => ({ x:50+Math.random()*(window.innerWidth-100), y:50+Math.random()*(window.innerHeight-100), angle:Math.random()*Math.PI*2, speed:BASE_SPEED+Math.random()*0.12, baseSpeed:BASE_SPEED+Math.random()*0.12, turn:(Math.random()-.5)*0.022, size:12+Math.random()*6, lp:Math.random()*Math.PI*2, pause:Math.floor(Math.random()*40) }));
+  function drawBug(b,f){ ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.angle+Math.PI/2); const s=b.size, lp=b.lp+f*0.055; [-0.56,0,0.56].forEach((yo,i)=>{ const sw=Math.sin(lp+i*1.1)*0.34; ctx.save(); ctx.translate(-s*.37,yo*s*.8); ctx.rotate(-.46+sw); ctx.strokeStyle=CL; ctx.lineWidth=s*.082; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-s*.7,s*.15); ctx.stroke(); ctx.restore(); ctx.save(); ctx.translate(s*.37,yo*s*.8); ctx.rotate(.46-sw); ctx.strokeStyle=CL; ctx.lineWidth=s*.082; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(s*.7,s*.15); ctx.stroke(); ctx.restore(); }); ctx.beginPath(); ctx.ellipse(0,s*.46,s*.38,s*.58,0,0,Math.PI*2); ctx.fillStyle=CB; ctx.fill(); ctx.beginPath(); ctx.ellipse(0,s*.48,s*.18,s*.34,0,0,Math.PI*2); ctx.fillStyle=CS; ctx.fill(); ctx.beginPath(); ctx.ellipse(0,-s*.1,s*.28,s*.3,0,0,Math.PI*2); ctx.fillStyle=CB; ctx.fill(); ctx.beginPath(); ctx.arc(0,-s*.65,s*.23,0,Math.PI*2); ctx.fillStyle=CB; ctx.fill(); [-0.11,0.11].forEach(ex=>{ ctx.beginPath(); ctx.arc(ex*s,-s*.69,s*.065,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.beginPath(); ctx.arc(ex*s,-s*.69,s*.032,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill(); }); const as=Math.sin(lp*.4)*.11; [[-0.12,-1],[0.12,1]].forEach(([ax,dir])=>{ ctx.save(); ctx.translate(ax*s,-s*.84); ctx.rotate(dir*(.36+as)); ctx.strokeStyle=CA; ctx.lineWidth=s*.052; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(dir*s*.17,-s*.45,dir*s*.3,-s*.78); ctx.stroke(); ctx.beginPath(); ctx.arc(dir*s*.3,-s*.78,s*.06,0,Math.PI*2); ctx.fillStyle=CA; ctx.fill(); ctx.restore(); }); ctx.restore(); }
+  let frame=0;
+  function animate(){ ctx.clearRect(0,0,canvas.width,canvas.height); bugs.forEach(b=>{ const dx=b.x-mouseX, dy=b.y-mouseY, dist=Math.sqrt(dx*dx+dy*dy); b.speed += ((mouseActive&&dist<PROX_RADIUS ? BOOST_SPEED : b.baseSpeed)-b.speed)*0.06; if(b.pause>0){ b.pause--; } else{ b.angle += b.turn+(Math.random()-.5)*.018; if(Math.random()<.003){ b.angle=Math.random()*Math.PI*2; b.turn=(Math.random()-.5)*.022; } b.x += Math.cos(b.angle)*b.speed; b.y += Math.sin(b.angle)*b.speed; if(b.x<12){b.x=12;b.angle=Math.PI-b.angle;} if(b.x>canvas.width-12){b.x=canvas.width-12;b.angle=Math.PI-b.angle;} if(b.y<12){b.y=12;b.angle=-b.angle;} if(b.y>canvas.height-12){b.y=canvas.height-12;b.angle=-b.angle;} if(Math.random()<.0015) b.pause=40+Math.floor(Math.random()*70); } drawBug(b,frame); }); frame++; requestAnimationFrame(animate); }
+  animate();
+})();
+</script>
+
+<script>
+(function(){
+  document.querySelectorAll('.scroll-inner.js-scroll').forEach(function(el){
+    function check(){ var atBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 4; el.classList.toggle('at-bottom', atBottom); }
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+  });
+})();
+</script>
+
+<script>
+(function(){
+  const indicators = [
+    {% if report.indicators %}
+      {% for ind in report.indicators %}
+        { desc: {{ ind.description | tojson }}, sev: {{ ind.severity | lower | tojson }}, pts: {{ ind.points }} },
+      {% endfor %}
+    {% endif %}
+  ];
+
+  const entropyVal = {% if report.static_analysis.entropy %}{{ report.static_analysis.entropy.value }}{% else %}0{% endif %};
+
+  const peEntropy = {% if report.static_analysis.pe_info and report.static_analysis.pe_info.available and report.static_analysis.pe_info.sections %}
+    [{% for sec in report.static_analysis.pe_info.sections %}{ name: {{ sec.name | tojson }}, entropy: {{ sec.entropy if sec.entropy is defined else 0 }} },{% endfor %}]
+  {% else %}
+    [{ name:'.text', entropy: entropyVal }, { name:'.data', entropy: Math.max(0,entropyVal-1.8) }, { name:'.rsrc', entropy: Math.max(0,entropyVal-2.4) }]
+  {% endif %};
+
+  const si = {% if report.static_analysis.strings and report.static_analysis.strings.interesting %}
+  {
+    urls:     {{ (report.static_analysis.strings.interesting.urls | length) if report.static_analysis.strings.interesting.urls else 0 }},
+    ips:      {{ (report.static_analysis.strings.interesting.ip_addresses | length) if report.static_analysis.strings.interesting.ip_addresses else 0 }},
+    paths:    {{ (report.static_analysis.strings.interesting.file_paths | length) if report.static_analysis.strings.interesting.file_paths else 0 }},
+    mutex:    {{ (report.static_analysis.strings.interesting.mutex_names | length) if report.static_analysis.strings.interesting.mutex_names else 0 }},
+    keywords: {{ (report.static_analysis.strings.interesting.suspicious_keywords | length) if report.static_analysis.strings.interesting.suspicious_keywords else 0 }}
+  }
+  {% else %}{urls:0,ips:0,paths:0,mutex:0,keywords:0}{% endif %};
+
+  const pe = {% if report.static_analysis.pe_info and report.static_analysis.pe_info.available and report.static_analysis.pe_info.suspicious_imports %}
+  {
+    crypto:  {{ report.static_analysis.pe_info.suspicious_imports | selectattr('dll','equalto','ADVAPI32.dll') | list | length }},
+    network: {{ report.static_analysis.pe_info.suspicious_imports | selectattr('dll','equalto','WS2_32.dll')   | list | length }},
+    kernel:  {{ report.static_analysis.pe_info.suspicious_imports | selectattr('dll','equalto','KERNEL32.dll') | list | length }},
+    other:   0
+  }
+  {% else %}{crypto:0,network:0,kernel:0,other:0}{% endif %};
+
+  const atk = (function(){
+    {% if report.static_analysis.mitre_attack and report.static_analysis.mitre_attack.total > 0 %}
+    const raw = {
+      'Defense Evasion': {{ report.static_analysis.mitre_attack.tactics_map['Defense Evasion'] | length if 'Defense Evasion' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Impact':          {{ report.static_analysis.mitre_attack.tactics_map['Impact'] | length if 'Impact' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'C2':              {{ report.static_analysis.mitre_attack.tactics_map['Command and Control'] | length if 'Command and Control' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Execution':       {{ report.static_analysis.mitre_attack.tactics_map['Execution'] | length if 'Execution' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Persistence':     {{ report.static_analysis.mitre_attack.tactics_map['Persistence'] | length if 'Persistence' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Discovery':       {{ report.static_analysis.mitre_attack.tactics_map['Discovery'] | length if 'Discovery' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Collection':      {{ report.static_analysis.mitre_attack.tactics_map['Collection'] | length if 'Collection' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Credential Access': {{ report.static_analysis.mitre_attack.tactics_map['Credential Access'] | length if 'Credential Access' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Lateral Movement':  {{ report.static_analysis.mitre_attack.tactics_map['Lateral Movement'] | length if 'Lateral Movement' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Exfiltration':    {{ report.static_analysis.mitre_attack.tactics_map['Exfiltration'] | length if 'Exfiltration' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Reconnaissance':  {{ report.static_analysis.mitre_attack.tactics_map['Reconnaissance'] | length if 'Reconnaissance' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Resource Development': {{ report.static_analysis.mitre_attack.tactics_map['Resource Development'] | length if 'Resource Development' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Initial Access':  {{ report.static_analysis.mitre_attack.tactics_map['Initial Access'] | length if 'Initial Access' in report.static_analysis.mitre_attack.tactics_map else 0 }},
+      'Privilege Escalation': {{ report.static_analysis.mitre_attack.tactics_map['Privilege Escalation'] | length if 'Privilege Escalation' in report.static_analysis.mitre_attack.tactics_map else 0 }}
+    };
+    const filtered = {};
+    Object.entries(raw).forEach(([k,v]) => { if(v > 0) filtered[k] = v; });
+    return Object.keys(filtered).length > 0 ? filtered : raw;
+    {% else %}
+    return {'Defense Evasion':0,'Impact':0,'C2':0,'Execution':0,'Persistence':0,'Discovery':0};
+    {% endif %}
+  })();
+
+  const sevPts = { critical:0, high:0, medium:0, low:0 };
+  indicators.forEach(i => { const s = (i.sev||'').toLowerCase(); if(sevPts[s] !== undefined) sevPts[s] += i.pts; });
+  const totalPts = Object.values(sevPts).reduce((a,b)=>a+b,0) || 1;
+
+  ['critical','high','medium','low'].forEach(s => {
+    const pct = Math.round((sevPts[s]/totalPts)*100);
+    const bar = document.getElementById('sev-bar-'+s);
+    const val = document.getElementById('sev-val-'+s);
+    if(bar) bar.style.width = pct+'%';
+    if(val) val.textContent = sevPts[s] > 0 ? '+'+sevPts[s] : '0';
+  });
+
+  const GRID = 'rgba(255,255,255,0.06)', TICK = '#7a8ba0';
+  const FONT = "'JetBrains Mono', monospace";
+  const C_RED='#f87171', C_ORANGE='#fb923c', C_AMBER='#fbbf24',
+        C_GREEN='#34d399', C_CYAN='#38bdf8', C_PURPLE='#a78bfa';
+  const sevColor = { critical:C_RED, high:C_ORANGE, medium:C_AMBER, low:C_GREEN };
+
+  const wfLabels=[], wfData=[], wfColors=[];
+  indicators.slice(0,12).forEach(ind => {
+    wfLabels.push(ind.desc.length>36 ? ind.desc.slice(0,34)+'…' : ind.desc);
+    wfData.push(ind.pts);
+    wfColors.push(sevColor[(ind.sev||'').toLowerCase()] || C_CYAN);
+  });
+
+  const charts = {};
+  function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+  function buildWaterfall(id, h){
+    destroyChart(id);
+    const ctx = document.getElementById(id); if(!ctx) return;
+    ctx.parentElement.style.height = h+'px';
+    charts[id] = new Chart(ctx, { type:'bar', data:{ labels:wfLabels, datasets:[{ label:'Score pts', data:wfData, backgroundColor:wfColors.map(c=>c+'bb'), borderColor:wfColors, borderWidth:1, borderRadius:5, borderSkipped:false, maxBarThickness: 48 }] }, options:{ responsive:true, maintainAspectRatio:false, layout:{ padding:{ left:0, right:0, top:8, bottom:0 } }, animation:{duration:900,easing:'easeOutQuart'}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220', borderColor:'rgba(56,189,248,0.3)', borderWidth:1, titleFont:{family:FONT,size:10}, bodyFont:{family:FONT,size:11}, callbacks:{ label:c=>'+'+c.parsed.y+' pts' } } }, scales:{ x:{ grid:{display:false}, ticks:{color:TICK,font:{family:FONT,size:8.5},maxRotation:42,autoSkip:true,maxTicksLimit:12} }, y:{ grid:{color:GRID}, ticks:{color:TICK,font:{family:FONT,size:9},callback:v=>'+'+v}, beginAtZero:true } } } });
+  }
+
+  function buildStringsMini(id, h){
+    destroyChart(id);
+    const ctx = document.getElementById(id); if(!ctx) return;
+    ctx.parentElement.style.height = h+'px';
+    charts[id] = new Chart(ctx, { type:'doughnut', data:{ labels:['Keywords','File Paths','IPs','URLs','Mutex'], datasets:[{ data:[si.keywords,si.paths,si.ips,si.urls,si.mutex], backgroundColor:[C_RED,C_AMBER,C_PURPLE,C_CYAN,C_ORANGE], borderWidth:0, hoverOffset:4 }] }, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', animation:{duration:700}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220', borderColor:'rgba(52,211,153,0.3)', borderWidth:1, titleFont:{family:FONT,size:10}, bodyFont:{family:FONT,size:11}, callbacks:{label:c=>c.label+': '+c.parsed} } } } });
+  }
+
+  function buildEntropyMini(id, h){
+    destroyChart(id);
+    const ctx = document.getElementById(id); if(!ctx) return;
+    ctx.parentElement.style.height = h+'px';
+    const cols = peEntropy.map(s => s.entropy>=7?C_RED:s.entropy>=6?C_AMBER:C_GREEN);
+    charts[id] = new Chart(ctx, { type:'bar', data:{ labels:peEntropy.map(s=>s.name), datasets:[{ data:peEntropy.map(s=>s.entropy), backgroundColor:cols, borderRadius:3, barThickness:14 }] }, options:{ responsive:true, maintainAspectRatio:false, animation:{duration:700}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220', borderColor:'rgba(251,191,36,0.3)', borderWidth:1, titleFont:{family:FONT,size:10}, bodyFont:{family:FONT,size:11} } }, scales:{ x:{ grid:{display:false}, ticks:{color:TICK,font:{family:FONT,size:8}} }, y:{ min:0, max:8.5, grid:{color:GRID}, ticks:{color:TICK,font:{family:FONT,size:8}} } } } });
+  }
+
+  function buildMitreMini(id, h){
+    destroyChart(id);
+    const ctx = document.getElementById(id); if(!ctx) return;
+    ctx.parentElement.style.height = h+'px';
+    charts[id] = new Chart(ctx, { type:'radar', data:{ labels:Object.keys(atk), datasets:[{ data:Object.values(atk), backgroundColor:'rgba(251,146,60,0.15)', borderColor:C_ORANGE, borderWidth:1.5, pointBackgroundColor:C_ORANGE, pointRadius:2 }] }, options:{ responsive:true, maintainAspectRatio:false, animation:{duration:700}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220', borderColor:'rgba(251,146,60,0.3)', borderWidth:1, titleFont:{family:FONT,size:10}, bodyFont:{family:FONT,size:11} } }, scales:{ r:{ min:0, grid:{color:GRID}, ticks:{display:false,stepSize:1}, pointLabels:{color:TICK,font:{family:FONT,size:7}} } } } });
+  }
+
+  const popupDefs = {
+    waterfall:{ title:'Score Build-up — Waterfall', iconPath:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', iconColor:C_CYAN, legend:[{c:C_RED,l:'Critical'},{c:C_ORANGE,l:'High'},{c:C_AMBER,l:'Medium'},{c:C_GREEN,l:'Low'}], build: id => { destroyChart(id); const ctx=document.getElementById(id); if(!ctx) return; charts[id]=new Chart(ctx,{ type:'bar', data:{ labels:wfLabels, datasets:[{ label:'Score pts', data:wfData, backgroundColor:wfColors.map(c=>c+'bb'), borderColor:wfColors, borderWidth:1, borderRadius:6, borderSkipped:false, maxBarThickness:54 }] }, options:{ responsive:true, maintainAspectRatio:false, layout:{ padding:{ top:8 } }, animation:{duration:900,easing:'easeOutQuart'}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220',borderColor:'rgba(56,189,248,0.3)',borderWidth:1, titleFont:{family:FONT,size:10},bodyFont:{family:FONT,size:12}, callbacks:{label:c=>'+'+c.parsed.y+' pts'} } }, scales:{ x:{grid:{display:false},ticks:{color:TICK,font:{family:FONT,size:9},maxRotation:40,autoSkip:true,maxTicksLimit:14}}, y:{grid:{color:GRID},ticks:{color:TICK,font:{family:FONT,size:10},callback:v=>'+'+v},beginAtZero:true} } } }); } },
+    severity:{ title:'Severity Score Breakdown', iconPath:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/>', iconColor:C_RED, legend:[{c:C_RED,l:'Critical +'+sevPts.critical+' pts'},{c:C_ORANGE,l:'High +'+sevPts.high+' pts'},{c:C_AMBER,l:'Medium +'+sevPts.medium+' pts'},{c:C_GREEN,l:'Low +'+sevPts.low+' pts'}], build: id => { destroyChart(id); const ctx=document.getElementById(id); if(!ctx) return; charts[id]=new Chart(ctx,{ type:'bar', data:{ labels:['Score'], datasets:[ {label:'Critical',data:[sevPts.critical],backgroundColor:C_RED+'bb',borderColor:C_RED,borderWidth:1,borderRadius:5}, {label:'High',data:[sevPts.high],backgroundColor:C_ORANGE+'bb',borderColor:C_ORANGE,borderWidth:1,borderRadius:5}, {label:'Medium',data:[sevPts.medium],backgroundColor:C_AMBER+'bb',borderColor:C_AMBER,borderWidth:1,borderRadius:5}, {label:'Low',data:[sevPts.low],backgroundColor:C_GREEN+'bb',borderColor:C_GREEN,borderWidth:1,borderRadius:5} ] }, options:{ responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeOutQuart'}, indexAxis:'y', plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220',borderColor:'rgba(248,113,113,0.3)',borderWidth:1, titleFont:{family:FONT,size:11},bodyFont:{family:FONT,size:12}, callbacks:{label:c=>c.dataset.label+': +'+c.parsed.x+' pts'} } }, scales:{ x:{stacked:true,max:Math.max(100,totalPts),grid:{color:GRID},ticks:{color:TICK,font:{family:FONT,size:11},callback:v=>'+'+v}}, y:{stacked:true,display:false} } } }); } },
+    strings:{ title:'Interesting Strings & Suspicious API Imports', iconPath:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>', iconColor:C_GREEN, legend:[{c:C_RED,l:'Keywords ('+si.keywords+')'},{c:C_AMBER,l:'File Paths ('+si.paths+')'},{c:C_PURPLE,l:'IPs ('+si.ips+')'},{c:C_CYAN,l:'URLs ('+si.urls+')'},{c:C_ORANGE,l:'Mutex ('+si.mutex+')'}], build: id => { destroyChart(id); const ctx=document.getElementById(id); if(!ctx) return; charts[id]=new Chart(ctx,{ type:'bar', data:{ labels:['Keywords','File Paths','IPs','URLs','Mutex','Crypto APIs','Network APIs','Kernel APIs'], datasets:[{ label:'Count', data:[si.keywords,si.paths,si.ips,si.urls,si.mutex,pe.crypto,pe.network,pe.kernel], backgroundColor:[C_RED+'cc',C_AMBER+'cc',C_PURPLE+'cc',C_CYAN+'cc',C_ORANGE+'cc','#ec4899cc','#8b5cf6cc','#6366f1cc'], borderRadius:5, maxBarThickness:50 }] }, options:{ responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeOutQuart'}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220',borderColor:'rgba(52,211,153,0.3)',borderWidth:1, titleFont:{family:FONT,size:11},bodyFont:{family:FONT,size:12} } }, scales:{ x:{grid:{display:false},ticks:{color:TICK,font:{family:FONT,size:11},maxRotation:30}}, y:{grid:{color:GRID},ticks:{color:TICK,font:{family:FONT,size:11},stepSize:1},beginAtZero:true} } } }); const ex=document.getElementById('popup-extra'); if(ex) ex.innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--text-ghost);border-top:1px solid var(--border-dim);padding-top:7px;letter-spacing:.06em">BARS 1–5 = extracted string categories &nbsp;·&nbsp; BARS 6–8 = PE suspicious imports by DLL</div>'; } },
+    entropy:{ title:'PE Section Entropy Breakdown', iconPath:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', iconColor:C_AMBER, legend:[{c:C_RED,l:'≥ 7.0 — suspicious (packed/encrypted)'},{c:C_AMBER,l:'6.0–6.9 — elevated'},{c:C_GREEN,l:'< 6.0 — normal'}], build: id => { destroyChart(id); const ctx=document.getElementById(id); if(!ctx) return; const cols=peEntropy.map(s=>s.entropy>=7?C_RED+'cc':s.entropy>=6?C_AMBER+'cc':C_GREEN+'cc'); charts[id]=new Chart(ctx,{ type:'bar', data:{ labels:peEntropy.map(s=>s.name), datasets:[{ label:'Entropy', data:peEntropy.map(s=>+s.entropy.toFixed(4)), backgroundColor:cols, borderColor:peEntropy.map(s=>s.entropy>=7?C_RED:s.entropy>=6?C_AMBER:C_GREEN), borderWidth:1, borderRadius:7, maxBarThickness:70 }] }, options:{ responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeOutQuart'}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220',borderColor:'rgba(251,191,36,0.3)',borderWidth:1, titleFont:{family:FONT,size:11},bodyFont:{family:FONT,size:12}, callbacks:{label:c=>c.parsed.y.toFixed(4)+' entropy'+(c.parsed.y>=7?' ⚠ suspicious':c.parsed.y>=6?' ↑ elevated':' ✓ normal')} } }, scales:{ x:{grid:{display:false},ticks:{color:TICK,font:{family:FONT,size:13}}}, y:{min:0,max:8.5,grid:{color:GRID},ticks:{color:TICK,font:{family:FONT,size:11},callback:v=>v.toFixed(1)}} } } }); } },
+    mitre:{ title:'MITRE ATT&CK Tactic Radar', iconPath:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/>', iconColor:C_ORANGE, legend:[{c:C_ORANGE,l:'Techniques detected per tactic'}], build: id => { destroyChart(id); const ctx=document.getElementById(id); if(!ctx) return; charts[id]=new Chart(ctx,{ type:'radar', data:{ labels:Object.keys(atk), datasets:[{ label:'Techniques', data:Object.values(atk), backgroundColor:'rgba(251,146,60,0.18)', borderColor:C_ORANGE, borderWidth:2, pointBackgroundColor:C_ORANGE, pointBorderColor:'#0e1220', pointBorderWidth:2, pointRadius:6, pointHoverRadius:8 }] }, options:{ responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeOutQuart'}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0e1220',borderColor:'rgba(251,146,60,0.3)',borderWidth:1, titleFont:{family:FONT,size:11},bodyFont:{family:FONT,size:12}, callbacks:{label:c=>c.parsed.r+' technique'+(c.parsed.r!==1?'s':'')} } }, scales:{ r:{ min:0, grid:{color:'rgba(255,255,255,0.08)'}, angleLines:{color:'rgba(255,255,255,0.08)'}, ticks:{display:false,stepSize:1}, pointLabels:{color:TICK,font:{family:FONT,size:12}} } } } }); } }
+  };
+
+  window.openPopup = function(type){
+    const def = popupDefs[type]; if(!def) return;
+    document.getElementById('popup-title-text').innerHTML = def.title;
+    const ico=document.getElementById('popup-icon'); ico.innerHTML=def.iconPath; ico.style.stroke=def.iconColor;
+    const leg=document.getElementById('popup-legend'); leg.innerHTML=def.legend.map(l=>`<span><span class="popup-legend-swatch" style="background:${l.c}"></span>${l.l}</span>`).join('');
+    const ex=document.getElementById('popup-extra'); if(ex) ex.innerHTML='';
+    const wrap=document.getElementById('popup-canvas-wrap'); wrap.innerHTML='<canvas id="chart-popup-canvas" role="img" aria-label="Expanded chart view"></canvas>';
+    document.getElementById('chart-popup-overlay').classList.add('active');
+    document.body.style.overflow='hidden';
+    requestAnimationFrame(()=>{ def.build('chart-popup-canvas'); });
+  };
+  window.closePopup = function(){ document.getElementById('chart-popup-overlay').classList.remove('active'); document.body.style.overflow=''; destroyChart('chart-popup-canvas'); };
+  window.closePopupOutside = function(e){ if(e.target===document.getElementById('chart-popup-overlay')) closePopup(); };
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePopup(); });
+
+  function initCharts(){
+    buildWaterfall('chart-waterfall-main', 200);
+    buildStringsMini('chart-strings-mini', 80);
+    buildEntropyMini('chart-entropy-mini', 80);
+    buildMitreMini('chart-mitre-mini', 80);
+  }
+
+  if(typeof Chart==='undefined'){
+    const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'; s.onload=initCharts; document.head.appendChild(s);
+  } else { initCharts(); }
+})();
+</script>
+
+<script>
+(function(){
+  const overlay    = document.getElementById('donate-overlay');
+  const openBtn    = document.getElementById('donate-open-btn');
+  const closeBtn   = document.getElementById('donate-close');
+  const copyBtn    = document.getElementById('dm-copy-btn');
+  const ensCopyBtn = document.getElementById('dm-ens-copy-btn');
+  const ETH_ADDR   = '0xE5dA40e1BC1fbDc4d42149257cbF3C2341A27b7e';
+  const ENS_NAME   = 'mebunny.eth';
+  const COPY_ICON  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>';
+  function openModal()  { overlay.classList.add('open');  document.body.style.overflow='hidden'; }
+  function closeModal() { overlay.classList.remove('open'); document.body.style.overflow=''; }
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+  copyBtn.addEventListener('click', ()=>{ function doCopy() { copyBtn.classList.add('copied'); copyBtn.innerHTML = CHECK_ICON + '<span>Copied!</span>'; setTimeout(()=>{ copyBtn.classList.remove('copied'); copyBtn.innerHTML = COPY_ICON + '<span id="dm-copy-label">Copy</span>'; }, 2200); } navigator.clipboard.writeText(ETH_ADDR).then(doCopy).catch(()=>{ const el=document.createElement('textarea'); el.value=ETH_ADDR; el.style.position='fixed'; el.style.opacity='0'; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); doCopy(); }); });
+  ensCopyBtn.addEventListener('click', ()=>{ function doCopyEns() { ensCopyBtn.classList.add('copied'); ensCopyBtn.innerHTML = CHECK_ICON + ' Copied!'; setTimeout(()=>{ ensCopyBtn.classList.remove('copied'); ensCopyBtn.innerHTML = COPY_ICON + ' Copy'; }, 2200); } navigator.clipboard.writeText(ENS_NAME).then(doCopyEns).catch(()=>{ const el=document.createElement('textarea'); el.value=ENS_NAME; el.style.position='fixed'; el.style.opacity='0'; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); doCopyEns(); }); });
+})();
+</script>
+
+<script>
+(function(){
+  var SECTIONS = [];
+  {% if report.static_analysis.pe_info and report.static_analysis.pe_info.available and report.static_analysis.pe_info.sections %}
+  {% for sec in report.static_analysis.pe_info.sections %}
+  SECTIONS.push({ name: {{ sec.name | tojson }}, vsize: {{ sec.virtual_size if sec.virtual_size is defined else 0 }}, rsize: {{ sec.raw_size if sec.raw_size is defined else 0 }}, entropy: {{ sec.entropy if sec.entropy is defined else 0 }} });
+  {% endfor %}
+  {% endif %}
+
+  function fmtBytes(n) { if(!n) return '0 B'; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(1)+' KB'; return (n/1048576).toFixed(2)+' MB'; }
+  function entColor(e) { if(e>=7.0) return 'var(--red)'; if(e>=6.0) return 'var(--amber)'; return 'var(--green)'; }
+  function entBadgeClass(e) { if(e>=7.0) return 'sus'; if(e>=6.0) return 'elev'; return 'norm'; }
+  function entBadgeLabel(e) { if(e>=7.0) return 'Suspicious'; if(e>=6.0) return 'Elevated'; return 'Normal'; }
+
+  window.openSectionsModal = function() {
+    if(!SECTIONS.length) return;
+    var maxEnt = Math.max.apply(null, SECTIONS.map(function(s){return s.entropy;}));
+    var suspicious = SECTIONS.filter(function(s){return s.entropy>=7.0;}).length;
+    var elevated   = SECTIONS.filter(function(s){return s.entropy>=6.0&&s.entropy<7.0;}).length;
+    var normal     = SECTIONS.filter(function(s){return s.entropy<6.0;}).length;
+    document.getElementById('sec-stats-row').innerHTML =
+      '<div class="sec-stat"><div class="sec-stat-num" style="color:var(--cyan)">'  +SECTIONS.length+'</div><div class="sec-stat-lbl">Total Sections</div></div>'+
+      '<div class="sec-stat"><div class="sec-stat-num" style="color:var(--red)">'   +suspicious+'</div><div class="sec-stat-lbl">Suspicious (≥7.0)</div></div>'+
+      '<div class="sec-stat"><div class="sec-stat-num" style="color:var(--amber)">' +elevated  +'</div><div class="sec-stat-lbl">Elevated (6–6.9)</div></div>'+
+      '<div class="sec-stat"><div class="sec-stat-num" style="color:var(--green)">' +normal    +'</div><div class="sec-stat-lbl">Normal (&lt;6.0)</div></div>'+
+      '<div class="sec-stat"><div class="sec-stat-num" style="color:'+entColor(maxEnt)+'">'+maxEnt.toFixed(4)+'</div><div class="sec-stat-lbl">Max Entropy</div></div>';
+    var rows = SECTIONS.map(function(s) {
+      var pct = Math.round((s.entropy/8)*100);
+      var col = entColor(s.entropy);
+      var bClass = entBadgeClass(s.entropy);
+      var bLabel = entBadgeLabel(s.entropy);
+      return '<tr>'+
+        '<td class="sec-td-name">'+s.name+'</td>'+
+        '<td class="sec-td-size">'+fmtBytes(s.vsize)+'</td>'+
+        '<td class="sec-td-size">'+fmtBytes(s.rsize)+'</td>'+
+        '<td class="sec-ent-td"><div class="sec-ent-inner">'+
+          '<div class="sec-ent-bar-track"><div class="sec-ent-bar-fill" style="width:0%;background:'+col+'" data-pct="'+pct+'"></div></div>'+
+          '<span class="sec-ent-num" style="color:'+col+'">'+s.entropy.toFixed(4)+'</span>'+
+          '<span class="sec-ent-badge '+bClass+'">'+bLabel+'</span>'+
+        '</div></td>'+
+      '</tr>';
+    }).join('');
+    document.getElementById('sec-table-body').innerHTML = rows;
+    document.getElementById('sec-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(function(){
+      document.querySelectorAll('.sec-ent-bar-fill').forEach(function(el){
+        el.style.width = el.dataset.pct+'%';
+      });
+    });
+  };
+
+  window.closeSectionsModal = function() {
+    document.getElementById('sec-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  };
+})();
+</script>
+</body>
+</html>

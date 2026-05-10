@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MalVizor — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #04080f;
+      --bg-panel: #0e1220;
+      --bg-elevated: #151c2e;
+      --bg-deep: #080d18;
+      --border-dim: rgba(255,255,255,0.07);
+      --text-bright: #f0f4ff;
+      --text-body: #c8d3e8;
+      --text-muted: #7a8ba0;
+      --text-ghost: #3d4f63;
+      --cyan: #38bdf8;
+      --cyan-dim: rgba(56,189,248,0.10);
+      --red: #f87171;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --purple: #a78bfa;
+      --mono: 'JetBrains Mono', 'Courier New', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #04080f;
+      font-family: var(--sans);
+      color: var(--text-body);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── Aurora background layer ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 60%, rgba(20,184,166,0.13) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 35%, rgba(139,92,246,0.11) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 90%, rgba(56,189,248,0.07) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 10%, rgba(167,139,250,0.06) 0%, transparent 45%);
+      pointer-events: none;
+      z-index: 0;
+      animation: aurora 14s ease-in-out infinite alternate;
+    }
+    @keyframes aurora {
+      0%   { opacity: 0.7; transform: scale(1)    translateY(0px); }
+      33%  { opacity: 1;   transform: scale(1.04) translateY(-12px); }
+      66%  { opacity: 0.8; transform: scale(0.97) translateY(8px); }
+      100% { opacity: 1;   transform: scale(1.03) translateY(-6px); }
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.018) 2px, rgba(0,0,0,0.018) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    .bg-grid {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(20,184,166,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20,184,166,0.015) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    .panel {
+      zoom: 1.3;
+      position: relative; z-index: 2;
+      width: 420px;
+      background: var(--bg-panel);
+      border: 1px solid rgba(56,189,248,0.13);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .panel-top {
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--cyan) 40%, var(--cyan) 60%, transparent 100%);
+      opacity: 0.45;
+    }
+
+    .panel-inner { padding: 2.5rem 2.5rem 2rem; }
+
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 2.25rem; }
+    .logo-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-icon img { width: 36px; height: 36px; object-fit: contain; display: block; }
+    .logo-icon svg { width: 18px; height: 18px; stroke: var(--cyan); stroke-width: 1.5; fill: none; display: none; }
+    .logo-name { font-family: var(--sans); font-size: 15px; font-weight: 700; color: var(--text-bright); letter-spacing: 0.01em; }
+    .logo-sub  { font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 1px; }
+
+    .login-heading { font-size: 20px; font-weight: 800; color: var(--text-bright); margin-bottom: 4px; letter-spacing: 0.02em; }
+    .login-sub { font-family: var(--mono); font-size: 10px; color: var(--text-muted); letter-spacing: 0.07em; margin-bottom: 1.75rem; }
+
+    .flash-error {
+      padding: 9px 13px;
+      background: rgba(248,113,113,0.07);
+      border: 1px solid rgba(248,113,113,0.22);
+      border-radius: 7px;
+      font-size: 12px;
+      color: var(--red);
+      margin-bottom: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .flash-error svg { width: 13px; height: 13px; stroke: var(--red); fill: none; stroke-width: 2; flex-shrink: 0; }
+
+    .field { margin-bottom: 1.1rem; }
+    .field label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 7px;
+    }
+    .field-wrap { position: relative; }
+    .field-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      width: 15px; height: 15px;
+      stroke: var(--text-ghost); fill: none; stroke-width: 1.8;
+      pointer-events: none;
+    }
+    .field input {
+      width: 100%;
+      background: var(--bg-void);
+      border: 1px solid var(--border-dim);
+      border-radius: 8px;
+      padding: 11px 13px 11px 38px;
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--text-bright);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input:focus {
+      border-color: rgba(56,189,248,0.40);
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.05);
+    }
+    .field input::placeholder { color: var(--text-ghost); }
+
+    .eye-btn {
+      position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 3px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .eye-btn svg { width: 14px; height: 14px; stroke: var(--text-ghost); fill: none; stroke-width: 2; }
+    .eye-btn:hover svg { stroke: var(--text-muted); }
+
+    /* ── Primary login button ── */
+    .btn-login {
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: 12px 16px;
+      background: rgba(14,58,90,0.85);
+      border: 1px solid rgba(56,189,248,0.30);
+      border-radius: 9px;
+      color: var(--cyan);
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      transition: all 0.18s;
+    }
+    .btn-login:hover { background: rgba(10,42,70,0.95); border-color: rgba(56,189,248,0.55); }
+    .btn-login:active { transform: scale(0.99); }
+    .btn-login:disabled { opacity: 0.6; pointer-events: none; }
+    .btn-login svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+
+    /* ── OR divider ── */
+    .or-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 1.1rem 0;
+    }
+    .or-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.05); }
+    .or-divider-text {
+      font-family: var(--mono); font-size: 10px;
+      color: var(--text-ghost); letter-spacing: 0.1em;
+    }
+
+    /* ── Guest button ── */
+    .btn-guest {
+      width: 100%;
+      padding: 11px 16px;
+      background: rgba(167,139,250,0.06);
+      border: 1px solid rgba(167,139,250,0.22);
+      border-radius: 9px;
+      color: var(--purple);
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-guest::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(110deg, transparent 20%, rgba(167,139,250,0.10) 40%, transparent 70%);
+      background-size: 250% 100%;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .btn-guest:hover { background: rgba(167,139,250,0.13); border-color: rgba(167,139,250,0.45); color: #c4b5fd; }
+    .btn-guest:hover::before { opacity: 1; animation: shimmer 1.4s ease infinite; }
+    .btn-guest:active { transform: scale(0.99); }
+    .btn-guest svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+    @keyframes shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+
+    .guest-note {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-ghost);
+      letter-spacing: 0.06em;
+      margin-top: 7px;
+      line-height: 1.5;
+    }
+
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(56,189,248,0.2);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .divider { display: flex; align-items: center; gap: 12px; margin-top: 1.5rem; }
+    .divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.05); }
+    .divider-text { font-family: var(--mono); font-size: 10px; color: var(--text-ghost); letter-spacing: 0.08em; white-space: nowrap; }
+
+    .panel-footer {
+      background: var(--bg-deep);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 11px 2.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .status-left { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; color: var(--green); letter-spacing: 0.08em; }
+    .status-dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .status-right { font-family: var(--mono); font-size: 10px; color: var(--text-ghost); letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<div class="panel">
+  <div class="panel-top"></div>
+  <div class="panel-inner">
+
+    <div class="brand">
+      <div class="logo-icon">
+        <img src="/static/images/logo.png" alt="Logo"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M12 8v4M12 16h.01"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-name">MalVizor</div>
+        <div class="logo-sub">Static Threat Analysis</div>
+      </div>
+    </div>
+
+    <div class="login-heading">Secure Access</div>
+    <div class="login-sub">Authenticate to access the analysis console</div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-{{ category }}">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/login" id="loginForm">
+      <input type="hidden" name="auth_action" id="authAction" value="login">
+      <div class="field">
+        <label>Email</label>
+        <div class="field-wrap">
+          <svg class="field-icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+          <input
+            type="email"
+            name="email"
+            id="email"
+            placeholder="Enter email"
+            autocomplete="email"
+            spellcheck="false"
+            value="{{ request.form.get('email', '') }}"
+            required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <div class="field-wrap">
+          <svg class="field-icon" viewBox="0 0 24 24">
+            <rect x="5" y="11" width="14" height="10" rx="2"/>
+            <path d="M8 11V7a4 4 0 018 0v4"/>
+          </svg>
+          <input
+            type="password"
+            name="password"
+            id="pwdInput"
+            placeholder="Enter password"
+            autocomplete="off"
+            required>
+          <button type="button" class="eye-btn" onclick="togglePwd()" title="Show/hide password">
+            <svg id="eyeIcon" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login" id="loginBtn">
+        <svg viewBox="0 0 24 24">
+          <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/>
+          <polyline points="10 17 15 12 10 7"/>
+          <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        <span id="btnText">Sign In</span>
+      </button>
+
+      <div class="guest-note" style="margin-top:12px">
+        <span id="authModeText">New here?</span>
+        <a href="#" id="switchAuth" style="color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(56,189,248,0.3)">Create account</a>
+      </div>
+    </form>
+
+    <!-- OR divider -->
+    <div class="or-divider">
+      <div class="or-divider-line"></div>
+      <div class="or-divider-text">OR</div>
+      <div class="or-divider-line"></div>
+    </div>
+
+    <!-- Guest access button -->
+    <a href="/guest" class="btn-guest" id="guestBtn">
+      <svg viewBox="0 0 24 24">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+        <line x1="12" y1="11" x2="12" y2="11"/>
+      </svg>
+      Continue as Guest
+    </a>
+    <div class="guest-note">No account needed · History stored locally in your browser</div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-text">SECURED SESSION</div>
+      <div class="divider-line"></div>
+    </div>
+
+  </div>
+
+  <div class="panel-footer">
+    <div class="status-left">
+      <div class="status-dot"></div>
+      SYSTEM ONLINE
+    </div>
+    <div class="status-right">v1.0 &middot; SUPABASE AUTH</div>
+  </div>
+</div>
+
+<script>
+  var isSignupMode = false;
+
+  function togglePwd() {
+    var inp  = document.getElementById('pwdInput');
+    var icon = document.getElementById('eyeIcon');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    } else {
+      inp.type = 'password';
+      icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+  }
+
+  document.getElementById('switchAuth').addEventListener('click', function(e) {
+    e.preventDefault();
+    isSignupMode = !isSignupMode;
+    document.getElementById('authAction').value = isSignupMode ? 'signup' : 'login';
+    document.getElementById('btnText').textContent = isSignupMode ? 'Create Account' : 'Sign In';
+    document.getElementById('authModeText').textContent = isSignupMode ? 'Already have an account?' : 'New here?';
+    this.textContent = isSignupMode ? 'Sign in instead' : 'Create account';
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', function() {
+    var btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div><span>' + (isSignupMode ? 'Creating account...' : 'Authenticating...') + '</span>';
+  });
+
+  document.getElementById('guestBtn').addEventListener('click', function(e) {
+    this.innerHTML = '<div class="spinner" style="border-top-color:var(--purple)"></div><span>Entering guest mode…</span>';
+    this.style.pointerEvents = 'none';
+    // Allow the href navigation to proceed normally
+  });
+</script>
+</body>
+</html>

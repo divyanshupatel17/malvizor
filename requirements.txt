@@ -1,0 +1,48 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MalVizar — Static Threat Analysis Tool
+# requirements.txt  (verified from actual source code — May 2026)
+#
+# STEP 1 — System packages (Kali Linux, run once as root):
+#   sudo apt install yara libpango-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
+#
+# STEP 2 — Python packages:
+#   pip install -r requirements.txt --break-system-packages
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Web framework
+# Used in: app.py
+# Provides: Flask, render_template, session, flash, redirect, jsonify, send_file
+# Also auto-installs: Jinja2, Werkzeug, click, itsdangerous, MarkupSafe
+Flask>=3.0.0
+supabase>=2.5.0
+python-dotenv>=1.0.0
+gunicorn>=21.2.0
+
+# PE (Portable Executable) binary analysis
+# Used in: analyzer/static_analysis.py
+# Provides: PE header parsing, section table, import table, compile timestamps
+pefile>=2023.2.7
+
+# YARA malware signature scanning
+# Used in: analyzer/static_analysis.py
+# Requires system package first: sudo apt install yara
+yara-python>=4.3.1
+
+# HTTP client — VirusTotal API v3 hash lookups
+# Used in: analyzer/static_analysis.py
+requests>=2.31.0
+
+# PDF report export (HTML → PDF)
+# Used in: app.py  (weasyprint.HTML, weasyprint.CSS)
+# Requires system libs: libpango-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
+weasyprint>=60.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Everything else is Python standard library — NO pip install needed:
+#
+#   app.py            → os, re, json, datetime, tempfile, base64, functools
+#   database.py       → os, sqlite3, datetime
+#   report_generator  → os, json, datetime  (IST via datetime.timezone — no pytz!)
+#   static_analysis   → os, re, math, hashlib, datetime, zipfile, tempfile, shutil
+#   config.py         → os
+# ─────────────────────────────────────────────────────────────────────────────
