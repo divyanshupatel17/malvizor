@@ -45,7 +45,9 @@ malware-behavior-analyzer/
 ├── config.py                     ← All settings via environment variables
 ├── supabase_client.py            ← Supabase auth + analyses database operations
 ├── database.py                   ← SQLite (analyzer.db): init, save, fetch analyses
-├── requirements.txt              ← 5 pip packages only
+├── requirements.txt              ← Python dependencies
+├── Dockerfile                    ← Render container image (YARA + WeasyPrint libs)
+├── render.yaml                   ← Render infrastructure configuration
 │
 ├── analyzer/
 │   ├── static_analysis.py        ← Core engine: all detection + MITRE ATT&CK mapping
@@ -138,7 +140,49 @@ Open browser at:
 http://localhost:5000
 ```
 
-Login with credentials from `config.py` (default: `bunty` / `bunty123`).
+Login with your Supabase email/password.
+
+---
+
+## Render Deployment (Render-only)
+
+This project is configured for Render using Docker (recommended).
+
+### 1. Render service settings
+
+- **Environment**: `Docker`
+- **Branch**: `main`
+- **Root Directory**: leave empty
+- **Instance type**: Free (or higher)
+
+If Render asks for commands:
+- **Build Command**: leave empty (Docker handles build)
+- **Start Command**: leave empty (Docker CMD handles startup)
+
+### 2. Environment variables in Render
+
+Set these in Render Web Service:
+
+```env
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_role_key
+SECRET_KEY=your_long_random_secret
+VIRUSTOTAL_API_KEY=your_virustotal_key
+DEBUG=false
+PORT=5000
+```
+
+### 3. Deploy and validate
+
+After deploy:
+1. Sign up / sign in
+2. Upload sample
+3. Check history + report view
+4. Delete a report
+5. Verify guest mode still works
+
+> Note: Render free tier spins down when idle and has ephemeral filesystem. Logged-in report data is stored in Supabase.
 
 ---
 
