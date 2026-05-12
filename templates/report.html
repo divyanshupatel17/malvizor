@@ -126,7 +126,7 @@
     .header-btn.logout:hover     { color: var(--red);  border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.05); }
     .header-btn.exit-guest:hover { color: var(--cyan); border-color: rgba(56,189,248,0.3);  background: rgba(56,189,248,0.05); }
 
-    .page-body { zoom: 0.8; }
+    .page-body { width: 100%; }
     .page { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.75rem 0; position: relative; z-index: 2; }
 
     /* ══════════════════════════════════════════════════
@@ -641,6 +641,77 @@
     .page.has-focus .card,.page.has-focus .vt-unified,.page.has-focus .coming-soon,.page.has-focus .threat-summary,.page.has-focus .attack-card,.page.has-focus .graph-main-card,.page.has-focus .mini-chart-card { opacity: 0.2; filter: blur(1px) brightness(0.65); transform: scale(0.97); }
     .page.has-focus .hero { opacity: 1; filter: none; }
     .page.has-focus .card.focused,.page.has-focus .vt-unified.focused,.page.has-focus .coming-soon.focused,.page.has-focus .threat-summary.focused,.page.has-focus .attack-card.focused,.page.has-focus .graph-main-card.focused,.page.has-focus .mini-chart-card.focused { opacity: 1 !important; filter: none !important; transform: scale(1.035) translateY(-3px) !important; box-shadow: 0 0 0 1px rgba(56,189,248,0.35), 0 20px 56px rgba(0,0,0,0.65), 0 0 30px rgba(56,189,248,0.08) !important; z-index: 30 !important; }
+
+    @media (max-width: 1100px) {
+      .header {
+        height: auto;
+        padding: 0.8rem 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+      .header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+      }
+      .page { padding: 1rem; }
+      .hero {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1.25rem;
+        gap: 1rem;
+      }
+      .hero-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .row-main-side,
+      .row-2-equal,
+      .row-3 { grid-template-columns: 1fr; }
+      .row-3 > .card,
+      .row-3 > .card.card-green { height: auto; }
+      .row-3 > .card > .card-body,
+      .row-3 > .card.card-green > .str-card-body { overflow: visible; }
+      .vt-unified-body { grid-template-columns: 1fr; }
+      .vt-left { border-right: none; border-bottom: 1px solid var(--border-dim); }
+      .attack-summary { flex-wrap: wrap; }
+      .ts-body { grid-template-columns: 1fr; }
+      .ts-confidence { width: 100%; }
+    }
+
+    @media (max-width: 768px) {
+      .guest-banner {
+        padding: 9px 1rem;
+        flex-wrap: wrap;
+        text-align: center;
+      }
+      .logo-sub { display: none; }
+      .pdf-btn,
+      .back-btn,
+      .header-btn { font-size: 11px; padding: 6px 10px; }
+      .hero-meta { grid-template-columns: 1fr; }
+      .hero-cls { font-size: 22px; }
+      .card-hdr,
+      .attack-hdr { flex-wrap: wrap; gap: 8px; }
+      .card-body { padding: 0.9rem 1rem; }
+      .hash-row { flex-wrap: wrap; }
+      .hash-val { white-space: normal; word-break: break-all; }
+      .engines-grid { grid-template-columns: 1fr; }
+      .attack-legend { flex-wrap: wrap; }
+      .graph-bottom-row { grid-template-columns: 1fr 1fr; }
+      .donate-modal { padding: 1.25rem; }
+      .dm-content { grid-template-columns: 1fr; }
+      .dm-qr-col { align-items: flex-start; }
+      .sec-modal { width: min(700px, 96vw); }
+      .sec-modal-body { padding: 0.75rem 0.9rem 1rem; }
+    }
+
+    @media (max-width: 520px) {
+      .graph-bottom-row { grid-template-columns: 1fr; }
+      .attack-techniques { flex-direction: column; }
+      .atk-chip { width: 100%; }
+      .atk-chip-name { max-width: none; }
+      .header-actions .session-badge,
+      .header-actions .status-pill { font-size: 9px; }
+    }
   </style>
 </head>
 <body>

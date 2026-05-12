@@ -63,8 +63,6 @@ body {
     line-height: 1.6;
     min-height: 100vh;
     overflow-x: hidden;
-
-    zoom: 1.1;   /* 👈 ADD THIS LINE */
 }
 
 /* ─── Animated Grid Background ─── */
@@ -1102,6 +1100,17 @@ body {
     .main {
         padding: 1rem;
     }
+    
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .history-table {
+        min-width: 760px;
+    }
+}
+
 /* ─── Logo Styling ─── */
 .logo-icon {
     display: flex;
