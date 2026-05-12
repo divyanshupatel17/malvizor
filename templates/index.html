@@ -614,7 +614,15 @@
       th, td { padding: 0.7rem 0.75rem; }
       .donate-modal { padding: 1.25rem; }
       .dm-content { grid-template-columns: 1fr; }
-      .dm-qr-col { align-items: flex-start; }
+      .dm-qr-col { align-items: center; }
+      .dm-network { display: flex; width: 100%; }
+      .dm-net-label { white-space: normal; line-height: 1.4; }
+      .dm-ens-row { flex-wrap: wrap; }
+      .dm-ens-name { word-break: break-all; }
+      .dm-addr-box { flex-direction: column; align-items: stretch; gap: 8px; }
+      .dm-addr-text { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; word-break: break-all; }
+      .dm-copy-btn,
+      .dm-ens-copy-btn { width: 100%; justify-content: center; }
     }
 
     @media (max-width: 480px) {
